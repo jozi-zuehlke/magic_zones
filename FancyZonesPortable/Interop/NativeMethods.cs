@@ -116,6 +116,44 @@ internal static class NativeMethods
     public const uint LWA_ALPHA = 0x02;
     public const uint LWA_COLORKEY = 0x01;
 
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool UpdateLayeredWindow(
+        IntPtr hwnd, IntPtr hdcDst, ref POINT pptDst, ref SIZE psize,
+        IntPtr hdcSrc, ref POINT pptSrc, uint crKey,
+        ref BLENDFUNCTION pblend, uint dwFlags);
+
+    [DllImport("gdi32.dll")]
+    public static extern IntPtr CreateCompatibleDC(IntPtr hdc);
+
+    [DllImport("gdi32.dll")]
+    public static extern bool DeleteDC(IntPtr hdc);
+
+    [DllImport("gdi32.dll")]
+    public static extern IntPtr SelectObject(IntPtr hdc, IntPtr hgdiobj);
+
+    [DllImport("gdi32.dll")]
+    public static extern bool DeleteObject(IntPtr hObject);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SIZE
+    {
+        public int cx;
+        public int cy;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct BLENDFUNCTION
+    {
+        public byte BlendOp;
+        public byte BlendFlags;
+        public byte SourceConstantAlpha;
+        public byte AlphaFormat;
+    }
+
+    public const byte AC_SRC_OVER = 0x00;
+    public const byte AC_SRC_ALPHA = 0x01;
+    public const uint ULW_ALPHA = 0x00000002;
+
     // --- Hotkey Message ---
     public const int WM_HOTKEY = 0x0312;
 }

@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 using FancyZonesPortable.Config;
 using FancyZonesPortable.Interop;
 
@@ -7,7 +8,8 @@ namespace FancyZonesPortable.App;
 
 /// <summary>
 /// Transparent, click-through, always-on-top overlay that renders zone highlights during Shift+drag.
-/// WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_NOACTIVATE
+/// Uses UpdateLayeredWindow with per-pixel alpha for true transparency — zones are
+/// semi-transparent and windows behind them remain visible.
 /// </summary>
 internal sealed class ZoneOverlay : Form
 {
@@ -24,14 +26,8 @@ internal sealed class ZoneOverlay : Form
         ShowInTaskbar = false;
         TopMost = true;
         StartPosition = FormStartPosition.Manual;
-        BackColor = Color.Black;
-        TransparencyKey = Color.Black;
-        DoubleBuffered = true;
-
-        SetStyle(ControlStyles.SupportsTransparentBackColor, true);
 
         // Force handle creation now so it's ready before any WinEvent callbacks fire.
-        // Avoids creating a window handle inside a hook callback.
         _ = Handle;
     }
 
@@ -52,9 +48,6 @@ internal sealed class ZoneOverlay : Form
 
     protected override bool ShowWithoutActivation => true;
 
-    /// <summary>
-    /// Updates the overlay with new zone data and display settings.
-    /// </summary>
     public void UpdateZones(List<ZoneDefinition> zones, SettingsConfig settings)
     {
         _zones = zones;
@@ -64,30 +57,21 @@ internal sealed class ZoneOverlay : Form
         _inactiveOpacity = Math.Clamp(settings.HighlightInactiveZoneOpacity, 0.0, 1.0);
     }
 
-    /// <summary>
-    /// Sets the currently active (highlighted) zone by id. Null means no active zone.
-    /// </summary>
     public void SetActiveZone(string? zoneId)
     {
         if (_activeZoneId == zoneId) return;
         _activeZoneId = zoneId;
-        Invalidate();
+        PaintLayered();
     }
 
-    /// <summary>
-    /// Shows the overlay covering the full working area.
-    /// </summary>
     public void ShowOverlay(Rectangle workingArea)
     {
         Bounds = workingArea;
         if (!Visible)
             Show();
-        Invalidate();
+        PaintLayered();
     }
 
-    /// <summary>
-    /// Hides the overlay.
-    /// </summary>
     public void HideOverlay()
     {
         if (Visible)
@@ -95,31 +79,80 @@ internal sealed class ZoneOverlay : Form
         _activeZoneId = null;
     }
 
-    protected override void OnPaint(PaintEventArgs e)
+    /// <summary>
+    /// Renders all zones into a 32bpp ARGB bitmap and applies it to the layered
+    /// window via UpdateLayeredWindow, giving true per-pixel alpha blending.
+    /// </summary>
+    private void PaintLayered()
     {
-        // DoubleBuffered fills the buffer with BackColor (Black) before OnPaint.
-        // Black == TransparencyKey, so untouched areas are see-through.
-        // Do NOT call g.Clear(Color.Transparent) — that writes white pixels (alpha
-        // is lost during blit), which breaks TransparencyKey.
-        var g = e.Graphics;
-        g.SmoothingMode = SmoothingMode.AntiAlias;
+        if (!Visible || Width <= 0 || Height <= 0) return;
 
-        // Draw inactive zones first, active zone last (on top)
-        foreach (var zone in _zones)
+        using var bmp = new Bitmap(Width, Height, PixelFormat.Format32bppArgb);
+        using (var g = Graphics.FromImage(bmp))
         {
-            if (zone.Id == _activeZoneId) continue;
-            DrawZone(g, zone, isActive: false);
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+            // Bitmap starts fully transparent (all zeros) — no Clear needed.
+
+            // Draw inactive zones first, active zone last (on top)
+            foreach (var zone in _zones)
+            {
+                if (zone.Id == _activeZoneId) continue;
+                DrawZone(g, zone, isActive: false);
+            }
+
+            var activeZone = _zones.FirstOrDefault(z => z.Id == _activeZoneId);
+            if (activeZone != null)
+                DrawZone(g, activeZone, isActive: true);
         }
 
-        // Draw active zone on top
-        var activeZone = _zones.FirstOrDefault(z => z.Id == _activeZoneId);
-        if (activeZone != null)
-            DrawZone(g, activeZone, isActive: true);
+        ApplyBitmapToLayeredWindow(bmp);
+    }
+
+    private void ApplyBitmapToLayeredWindow(Bitmap bmp)
+    {
+        IntPtr screenDc = IntPtr.Zero;
+        IntPtr memDc = IntPtr.Zero;
+        IntPtr hBitmap = IntPtr.Zero;
+        IntPtr oldBitmap = IntPtr.Zero;
+
+        try
+        {
+            screenDc = NativeMethods.CreateCompatibleDC(IntPtr.Zero);
+            memDc = NativeMethods.CreateCompatibleDC(screenDc);
+            hBitmap = bmp.GetHbitmap(Color.FromArgb(0));
+            oldBitmap = NativeMethods.SelectObject(memDc, hBitmap);
+
+            var size = new NativeMethods.SIZE { cx = bmp.Width, cy = bmp.Height };
+            var pointSrc = new NativeMethods.POINT { X = 0, Y = 0 };
+            var pointDst = new NativeMethods.POINT { X = Left, Y = Top };
+            var blend = new NativeMethods.BLENDFUNCTION
+            {
+                BlendOp = NativeMethods.AC_SRC_OVER,
+                BlendFlags = 0,
+                SourceConstantAlpha = 255,
+                AlphaFormat = NativeMethods.AC_SRC_ALPHA
+            };
+
+            NativeMethods.UpdateLayeredWindow(
+                Handle, IntPtr.Zero, ref pointDst, ref size,
+                memDc, ref pointSrc, 0, ref blend, NativeMethods.ULW_ALPHA);
+        }
+        finally
+        {
+            if (oldBitmap != IntPtr.Zero && memDc != IntPtr.Zero)
+                NativeMethods.SelectObject(memDc, oldBitmap);
+            if (hBitmap != IntPtr.Zero)
+                NativeMethods.DeleteObject(hBitmap);
+            if (memDc != IntPtr.Zero)
+                NativeMethods.DeleteDC(memDc);
+            if (screenDc != IntPtr.Zero)
+                NativeMethods.DeleteDC(screenDc);
+        }
     }
 
     private void DrawZone(Graphics g, ZoneDefinition zone, bool isActive)
     {
-        // Convert from screen coordinates to overlay-local coordinates
         var rect = new Rectangle(
             zone.AbsoluteRect.X - Bounds.X,
             zone.AbsoluteRect.Y - Bounds.Y,
@@ -139,7 +172,6 @@ internal sealed class ZoneOverlay : Form
         g.FillRectangle(fillBrush, rect);
         g.DrawRectangle(borderPen, rect);
 
-        // Draw zone name label
         if (!string.IsNullOrEmpty(zone.Name))
         {
             using var font = new Font("Segoe UI", 11f, FontStyle.Bold);
