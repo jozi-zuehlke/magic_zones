@@ -8,10 +8,23 @@ namespace FancyZonesPortable.App;
 
 /// <summary>
 /// Drag lifecycle state machine + zone hit testing + snap application.
+///
+/// State machine:
+///   IDLE
+///     → [MOVESIZESTART on eligible window] → TRACKING
+///
+///   TRACKING  (window is being dragged; modifier NOT held; overlay hidden)
+///     → [modifier pressed]   → ACTIVE   (show overlay, start hit-testing)
+///     → [MOVESIZEEND]        → IDLE     (no snap)
+///
+///   ACTIVE    (window is being dragged; modifier IS held; overlay visible)
+///     → [modifier released]  → TRACKING (hide overlay, keep tracking)
+///     → [Escape pressed]     → TRACKING (hide overlay, keep tracking)
+///     → [MOVESIZEEND]        → snap     → IDLE
 /// </summary>
 internal sealed class SnapEngine : IDisposable
 {
-    private enum DragState { Idle, Active, Cancelled }
+    private enum DragState { Idle, Tracking, Active }
 
     private DragState _state = DragState.Idle;
     private IntPtr _draggedHwnd = IntPtr.Zero;
@@ -120,29 +133,25 @@ internal sealed class SnapEngine : IDisposable
 
         if (ShouldIgnoreWindow(hwnd)) return;
 
-        if (!IsActivationModifierHeld())
-        {
-            Logger.Info($"[EVENT] Ignored: activation modifier '{_settings.ActivationModifier}' not held.");
-            return;
-        }
-
-        // Start drag
-        _state = DragState.Active;
+        // Always start tracking the drag — the user can press/release the
+        // activation modifier at any point during the drag.
         _draggedHwnd = hwnd;
-
-        Logger.Info($"[DRAG_START] hwnd=0x{hwnd:X} window=\"{GetWindowTitle(hwnd)}\" zones={_zones.Count} workArea={_workingArea}");
-
-        // Show overlay
-        _overlay.ShowOverlay(_workingArea);
-
-        // Start cursor polling
         _cursorPollTimer?.Start();
-
-        // Install low-level keyboard hook for Escape detection
         InstallKeyboardHook();
 
-        // Do initial hit test
-        UpdateActiveZone();
+        // If modifier is already held, go straight to Active; otherwise Tracking.
+        if (IsActivationModifierHeld())
+        {
+            _state = DragState.Active;
+            _overlay.ShowOverlay(_workingArea);
+            UpdateActiveZone();
+            Logger.Info($"[DRAG_START] Active (modifier held) hwnd=0x{hwnd:X} zones={_zones.Count}");
+        }
+        else
+        {
+            _state = DragState.Tracking;
+            Logger.Info($"[DRAG_START] Tracking (modifier not held) hwnd=0x{hwnd:X}");
+        }
     }
 
     private void OnMoveSizeEnd(
@@ -162,7 +171,7 @@ internal sealed class SnapEngine : IDisposable
 
         if (!wasActive || targetHwnd == IntPtr.Zero)
         {
-            Logger.Info("[DRAG_END] Cancelled — no snap.");
+            Logger.Info("[DRAG_END] Not in active snap mode — no snap.");
             return;
         }
 
@@ -179,18 +188,29 @@ internal sealed class SnapEngine : IDisposable
 
     private void OnCursorPoll(object? sender, EventArgs e)
     {
-        if (_state != DragState.Active) return;
+        if (_state == DragState.Idle) return;
 
-        // Check if activation modifier is still held
-        if (!IsActivationModifierHeld())
+        bool modifierHeld = IsActivationModifierHeld();
+
+        if (_state == DragState.Tracking && modifierHeld)
         {
-            Logger.Info("[DRAG] Modifier released — cancelling snap.");
-            _state = DragState.Cancelled;
-            _overlay.HideOverlay();
-            return;
+            // Modifier just pressed mid-drag → activate overlay
+            _state = DragState.Active;
+            _overlay.ShowOverlay(_workingArea);
+            Logger.Info("[DRAG] Modifier pressed — entering active snap mode.");
+            UpdateActiveZone();
         }
-
-        UpdateActiveZone();
+        else if (_state == DragState.Active && !modifierHeld)
+        {
+            // Modifier released mid-drag → deactivate overlay, keep tracking
+            _state = DragState.Tracking;
+            _overlay.HideOverlay();
+            Logger.Info("[DRAG] Modifier released — returning to tracking mode.");
+        }
+        else if (_state == DragState.Active)
+        {
+            UpdateActiveZone();
+        }
     }
 
     private void UpdateActiveZone()
@@ -314,8 +334,8 @@ internal sealed class SnapEngine : IDisposable
             int vkCode = System.Runtime.InteropServices.Marshal.ReadInt32(lParam);
             if (vkCode == NativeMethods.VK_ESCAPE && _state == DragState.Active)
             {
-                Logger.Info("[DRAG] Escape pressed — cancelling snap.");
-                _state = DragState.Cancelled;
+                Logger.Info("[DRAG] Escape pressed — returning to tracking mode.");
+                _state = DragState.Tracking;
                 _overlay.HideOverlay();
             }
         }
@@ -326,10 +346,7 @@ internal sealed class SnapEngine : IDisposable
     private void CancelDrag()
     {
         if (_state != DragState.Idle)
-        {
-            _state = DragState.Cancelled;
             CleanupDragState();
-        }
     }
 
     private void CleanupDragState()
