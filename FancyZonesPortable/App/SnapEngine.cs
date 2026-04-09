@@ -1,0 +1,329 @@
+using System.Drawing;
+using System.Text;
+using FancyZonesPortable.Config;
+using FancyZonesPortable.Interop;
+using FancyZonesPortable.Logging;
+
+namespace FancyZonesPortable.App;
+
+/// <summary>
+/// Drag lifecycle state machine + zone hit testing + snap application.
+/// </summary>
+internal sealed class SnapEngine : IDisposable
+{
+    private enum DragState { Idle, Active, Cancelled }
+
+    private DragState _state = DragState.Idle;
+    private IntPtr _draggedHwnd = IntPtr.Zero;
+    private WinEventHook? _moveStartHook;
+    private WinEventHook? _moveEndHook;
+    private System.Windows.Forms.Timer? _cursorPollTimer;
+    private IntPtr _keyboardHook = IntPtr.Zero;
+    private NativeMethods.LowLevelKeyboardProc? _keyboardProc;
+
+    private readonly ZoneOverlay _overlay;
+    private List<ZoneDefinition> _zones = new();
+    private SettingsConfig _settings = new();
+    private Rectangle _workingArea;
+    private bool _enabled = true;
+    private bool _disposed;
+
+    public bool Enabled
+    {
+        get => _enabled;
+        set
+        {
+            _enabled = value;
+            Logger.Info($"Snapping {(_enabled ? "enabled" : "disabled")}");
+            if (!_enabled)
+                CancelDrag();
+        }
+    }
+
+    public IntPtr OverlayHandle => _overlay.Handle;
+
+    public SnapEngine(ZoneOverlay overlay)
+    {
+        _overlay = overlay;
+
+        // Cursor poll timer (~16ms = ~60fps)
+        _cursorPollTimer = new System.Windows.Forms.Timer { Interval = 16 };
+        _cursorPollTimer.Tick += OnCursorPoll;
+    }
+
+    /// <summary>
+    /// Installs the win event hooks to detect window move/resize start/end.
+    /// </summary>
+    public void Start()
+    {
+        _moveStartHook = new WinEventHook(
+            NativeMethods.EVENT_SYSTEM_MOVESIZESTART,
+            NativeMethods.EVENT_SYSTEM_MOVESIZESTART,
+            OnMoveSizeStart);
+
+        _moveEndHook = new WinEventHook(
+            NativeMethods.EVENT_SYSTEM_MOVESIZEEND,
+            NativeMethods.EVENT_SYSTEM_MOVESIZEEND,
+            OnMoveSizeEnd);
+
+        Logger.Info("SnapEngine started — hooks installed.");
+    }
+
+    /// <summary>
+    /// Updates the zone configuration. Safe to call during a drag (new config applies next drag).
+    /// </summary>
+    public void UpdateConfig(List<ZoneDefinition> zones, SettingsConfig settings, Rectangle workingArea)
+    {
+        _zones = zones;
+        _settings = settings;
+        _workingArea = workingArea;
+        _overlay.UpdateZones(zones, settings);
+    }
+
+    private void OnMoveSizeStart(
+        IntPtr hWinEventHook, uint eventType, IntPtr hwnd,
+        int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
+    {
+        if (!_enabled || _state != DragState.Idle) return;
+        if (hwnd == IntPtr.Zero) return;
+
+        // Check if this window should be ignored
+        if (ShouldIgnoreWindow(hwnd)) return;
+
+        // Check if activation modifier is held
+        if (!IsActivationModifierHeld()) return;
+
+        // Start drag
+        _state = DragState.Active;
+        _draggedHwnd = hwnd;
+
+        Logger.Info($"[DRAG_START] hwnd=0x{hwnd:X} window=\"{GetWindowTitle(hwnd)}\"");
+
+        // Show overlay
+        _overlay.ShowOverlay(_workingArea);
+
+        // Start cursor polling
+        _cursorPollTimer?.Start();
+
+        // Install low-level keyboard hook for Escape detection
+        InstallKeyboardHook();
+
+        // Do initial hit test
+        UpdateActiveZone();
+    }
+
+    private void OnMoveSizeEnd(
+        IntPtr hWinEventHook, uint eventType, IntPtr hwnd,
+        int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
+    {
+        if (_state == DragState.Idle) return;
+
+        var wasActive = _state == DragState.Active;
+        var targetHwnd = _draggedHwnd;
+
+        CleanupDragState();
+
+        if (!wasActive || targetHwnd == IntPtr.Zero)
+        {
+            Logger.Info("[DRAG_END] Cancelled — no snap.");
+            return;
+        }
+
+        // Final hit test at cursor position
+        var activeZone = HitTest();
+        if (activeZone == null)
+        {
+            Logger.Info("[DRAG_END] No zone at cursor position — no snap.");
+            return;
+        }
+
+        ApplySnap(targetHwnd, activeZone);
+    }
+
+    private void OnCursorPoll(object? sender, EventArgs e)
+    {
+        if (_state != DragState.Active) return;
+
+        // Check if activation modifier is still held
+        if (!IsActivationModifierHeld())
+        {
+            Logger.Info("[DRAG] Modifier released — cancelling snap.");
+            _state = DragState.Cancelled;
+            _overlay.HideOverlay();
+            return;
+        }
+
+        UpdateActiveZone();
+    }
+
+    private void UpdateActiveZone()
+    {
+        var zone = HitTest();
+        _overlay.SetActiveZone(zone?.Id);
+    }
+
+    private ZoneDefinition? HitTest()
+    {
+        if (!NativeMethods.GetCursorPos(out var pt)) return null;
+
+        var candidates = new List<ZoneDefinition>();
+
+        foreach (var zone in _zones)
+        {
+            if (zone.AbsoluteRect.Contains(pt.X, pt.Y))
+                candidates.Add(zone);
+        }
+
+        if (candidates.Count == 0) return null;
+        if (candidates.Count == 1) return candidates[0];
+
+        // Sort by priority ascending, then by array index ascending
+        candidates.Sort((a, b) =>
+        {
+            int cmp = a.Priority.CompareTo(b.Priority);
+            return cmp != 0 ? cmp : a.ArrayIndex.CompareTo(b.ArrayIndex);
+        });
+
+        return candidates[0];
+    }
+
+    private void ApplySnap(IntPtr hwnd, ZoneDefinition zone)
+    {
+        // Restore maximized windows first
+        if (NativeMethods.IsZoomed(hwnd))
+        {
+            NativeMethods.ShowWindow(hwnd, NativeMethods.SW_RESTORE);
+            Logger.Info($"[SNAP] Restored maximized window before snapping.");
+        }
+
+        var rect = zone.AbsoluteRect;
+        NativeMethods.SetWindowPos(
+            hwnd, IntPtr.Zero,
+            rect.X, rect.Y, rect.Width, rect.Height,
+            NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE);
+
+        var title = GetWindowTitle(hwnd);
+        Logger.Info($"[SNAP] hwnd=0x{hwnd:X} window=\"{title}\" zone=\"{zone.Id}\" rect={rect.X},{rect.Y},{rect.Width},{rect.Height}");
+    }
+
+    private bool IsActivationModifierHeld()
+    {
+        int vk = _settings.ActivationModifier.ToUpperInvariant() switch
+        {
+            "SHIFT" => NativeMethods.VK_SHIFT,
+            "CTRL" or "CONTROL" => NativeMethods.VK_CONTROL,
+            "ALT" => NativeMethods.VK_MENU,
+            _ => NativeMethods.VK_SHIFT
+        };
+
+        return (NativeMethods.GetAsyncKeyState(vk) & 0x8000) != 0;
+    }
+
+    private bool ShouldIgnoreWindow(IntPtr hwnd)
+    {
+        // Ignore the overlay itself
+        if (hwnd == _overlay.Handle) return true;
+
+        // Ignore taskbar
+        var className = GetClassName(hwnd);
+        if (className is "Shell_TrayWnd" or "Shell_SecondaryTrayWnd") return true;
+
+        // Ignore tool windows
+        var exStyle = NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
+        if ((exStyle & NativeMethods.WS_EX_TOOLWINDOW) != 0) return true;
+
+        return false;
+    }
+
+    private void InstallKeyboardHook()
+    {
+        _keyboardProc = KeyboardHookCallback;
+        _keyboardHook = NativeMethods.SetWindowsHookEx(
+            NativeMethods.WH_KEYBOARD_LL,
+            _keyboardProc,
+            NativeMethods.GetModuleHandle(null),
+            0);
+
+        if (_keyboardHook == IntPtr.Zero)
+            Logger.Warn("Failed to install keyboard hook for Escape detection.");
+    }
+
+    private void UninstallKeyboardHook()
+    {
+        if (_keyboardHook != IntPtr.Zero)
+        {
+            NativeMethods.UnhookWindowsHookEx(_keyboardHook);
+            _keyboardHook = IntPtr.Zero;
+        }
+        _keyboardProc = null;
+    }
+
+    private IntPtr KeyboardHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
+    {
+        if (nCode >= NativeMethods.HC_ACTION && wParam == (IntPtr)NativeMethods.WM_KEYDOWN)
+        {
+            int vkCode = System.Runtime.InteropServices.Marshal.ReadInt32(lParam);
+            if (vkCode == NativeMethods.VK_ESCAPE && _state == DragState.Active)
+            {
+                Logger.Info("[DRAG] Escape pressed — cancelling snap.");
+                _state = DragState.Cancelled;
+                _overlay.HideOverlay();
+            }
+        }
+
+        return NativeMethods.CallNextHookEx(_keyboardHook, nCode, wParam, lParam);
+    }
+
+    private void CancelDrag()
+    {
+        if (_state != DragState.Idle)
+        {
+            _state = DragState.Cancelled;
+            CleanupDragState();
+        }
+    }
+
+    private void CleanupDragState()
+    {
+        _cursorPollTimer?.Stop();
+        _overlay.HideOverlay();
+        UninstallKeyboardHook();
+        _state = DragState.Idle;
+        _draggedHwnd = IntPtr.Zero;
+    }
+
+    private static string GetWindowTitle(IntPtr hwnd)
+    {
+        int len = NativeMethods.GetWindowTextLength(hwnd);
+        if (len == 0) return "";
+        var sb = new StringBuilder(len + 1);
+        NativeMethods.GetWindowText(hwnd, sb, sb.Capacity);
+        return sb.ToString();
+    }
+
+    private static string GetClassName(IntPtr hwnd)
+    {
+        var sb = new StringBuilder(256);
+        NativeMethods.GetClassName(hwnd, sb, sb.Capacity);
+        return sb.ToString();
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        CancelDrag();
+
+        _cursorPollTimer?.Stop();
+        _cursorPollTimer?.Dispose();
+        _cursorPollTimer = null;
+
+        _moveStartHook?.Dispose();
+        _moveEndHook?.Dispose();
+        _moveStartHook = null;
+        _moveEndHook = null;
+
+        Logger.Info("SnapEngine disposed.");
+    }
+}

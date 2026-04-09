@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>FancyZonesPortable</RootNamespace>
+    <AssemblyName>FancyZonesPortable</AssemblyName>
+
+    <!-- Single-file self-contained publish -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+
+    <!-- Application manifest for DPI and UAC -->
+    <ApplicationManifest>Resources\app.manifest</ApplicationManifest>
+
+    <!-- Per-Monitor DPI Aware v2 -->
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+
+    <!-- Embedded icon -->
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+
+    <!-- Enable cross-compilation on non-Windows hosts -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+
+    <Version>1.0.0</Version>
+    <Product>FancyZones Portable</Product>
+    <Description>Portable window zone manager for Windows</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\icon_enabled.ico" LogicalName="icon_enabled.ico" />
+    <EmbeddedResource Include="Resources\icon_disabled.ico" LogicalName="icon_disabled.ico" />
+  </ItemGroup>
+
+</Project>
