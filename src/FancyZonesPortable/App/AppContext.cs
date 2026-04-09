@@ -253,13 +253,15 @@ internal class AppContext : ApplicationContext
         _engine.BeginDrag(_trackedWindowHandle, primaryMonitor, workingArea, cursorX, cursorY);
 
         var resolveResult = _converter.Resolve(primaryMonitor, workingArea);
-        _overlayRenderer.Show(BuildRenderInfos(resolveResult.Zones), workingArea);
+        _overlayRenderer.Show(
+            BuildRenderInfos(resolveResult.Zones),
+            workingArea,
+            _engine.ActiveZone?.Definition.Id);
 
         // Pass overlay HWND to filter after first show (form handle is created on Show)
         if (_overlayRenderer.Handle != 0)
             _windowFilter.SetOverlayHandle(_overlayRenderer.Handle);
 
-        _overlayRenderer.SetActiveZone(_engine.ActiveZone?.Definition.Id);
         _keyboardHook.Install();
     }
 

@@ -25,11 +25,12 @@ internal class OverlayRenderer : IOverlayRenderer
         _overlay!.SetColors(activeColor, activeOpacity, inactiveColor, inactiveOpacity);
     }
 
-    public void Show(IReadOnlyList<ZoneRenderInfo> zones, CoreRectangle workingArea)
+    public void Show(IReadOnlyList<ZoneRenderInfo> zones, CoreRectangle workingArea, string? activeZoneId)
     {
         EnsureOverlay();
         _overlay!.SetOverlayBounds(workingArea.X, workingArea.Y, workingArea.Width, workingArea.Height);
         _overlay.SetZones(zones);
+        _overlay.SetActiveZone(activeZoneId);
         _overlay.ShowTopMost();
     }
 

@@ -52,8 +52,20 @@
   don't do these changes in parallel, do them sequentially. also, remember that you are the engineering manager, so don't implement anything yourself, delegate everything to sub-agents, including root cause analysis
   ```
 
+  ```txt
+  unfortunately the bug with the wrong zone being highlighted initially when activating after dragging the window is still happening. please spawn another sub-agent to investigate and fix this bug. here is the log .output from one such case. unfortunately it does not say much:
+
+    <log>
+    [2026-04-09 19:48:12.989] [INFO] Drag started for window 0xE805F8.
+    [2026-04-09 19:48:13.749] [INFO] Snapping to zone 'sharing'.
+    [2026-04-09 19:48:13.750] [INFO] DWM frame compensation: insets L=5 T=0 R=5 B=5
+    [2026-04-09 19:48:13.764] [INFO] Snapped window 0xE805F8 to zone (1444, 251, 1926, 1080)
+    </log>
+  ```
+
 - created a nice architecture, including tests
 - did not create single executable by itself, and created no scrips to run the publish
 - it created an app that crashed on launch
 - was able to fix the blocking bug after one prompt, then just worked
 - was able to implement my feature requests with tests
+- was not able to fix one bug on first try, but was on second

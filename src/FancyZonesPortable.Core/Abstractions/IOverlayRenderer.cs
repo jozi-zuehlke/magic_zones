@@ -7,8 +7,10 @@ public interface IOverlayRenderer
 {
     /// <summary>
     /// Shows the overlay with the specified zone rectangles, sized to cover the given working area.
+    /// The <paramref name="activeZoneId"/> is applied before the overlay becomes visible so the
+    /// correct zone is highlighted from the very first frame.
     /// </summary>
-    void Show(IReadOnlyList<ZoneRenderInfo> zones, Rectangle workingArea);
+    void Show(IReadOnlyList<ZoneRenderInfo> zones, Rectangle workingArea, string? activeZoneId);
 
     /// <summary>
     /// Updates the overlay to highlight the specified active zone (by ID), or null for no highlight.
