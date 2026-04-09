@@ -112,7 +112,17 @@ internal sealed class AppContext : ApplicationContext
             var (config, warnings) = ConfigLoader.Load(_configPath);
 
             // Resolve zones against primary monitor working area
-            var workingArea = Screen.PrimaryScreen!.WorkingArea;
+            var primaryScreen = Screen.PrimaryScreen;
+            if (primaryScreen == null)
+            {
+                Logger.Error("Screen.PrimaryScreen is null — cannot resolve zone geometry.");
+                warnings.Add("Primary screen not found.");
+                _currentConfig = config;
+                return;
+            }
+
+            var workingArea = primaryScreen.WorkingArea;
+            Logger.Info($"Primary screen working area: {workingArea}");
             var resolveWarnings = ConfigLoader.ResolveZones(config, workingArea);
             warnings.AddRange(resolveWarnings);
 
@@ -122,6 +132,11 @@ internal sealed class AppContext : ApplicationContext
 
             _currentConfig = config;
             _engine.UpdateConfig(zones, config.Settings, workingArea);
+
+            foreach (var zone in zones)
+            {
+                Logger.Info($"  Zone '{zone.Id}' (priority={zone.Priority}): {zone.AbsoluteRect}");
+            }
 
             foreach (var warning in warnings)
             {

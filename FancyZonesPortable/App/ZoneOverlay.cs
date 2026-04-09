@@ -29,6 +29,10 @@ internal sealed class ZoneOverlay : Form
         DoubleBuffered = true;
 
         SetStyle(ControlStyles.SupportsTransparentBackColor, true);
+
+        // Force handle creation now so it's ready before any WinEvent callbacks fire.
+        // Avoids creating a window handle inside a hook callback.
+        _ = Handle;
     }
 
     protected override CreateParams CreateParams
@@ -93,10 +97,12 @@ internal sealed class ZoneOverlay : Form
 
     protected override void OnPaint(PaintEventArgs e)
     {
-        base.OnPaint(e);
+        // DoubleBuffered fills the buffer with BackColor (Black) before OnPaint.
+        // Black == TransparencyKey, so untouched areas are see-through.
+        // Do NOT call g.Clear(Color.Transparent) — that writes white pixels (alpha
+        // is lost during blit), which breaks TransparencyKey.
         var g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
-        g.Clear(Color.Transparent);
 
         // Draw inactive zones first, active zone last (on top)
         foreach (var zone in _zones)

@@ -21,12 +21,19 @@ internal sealed class SnapEngine : IDisposable
     private IntPtr _keyboardHook = IntPtr.Zero;
     private NativeMethods.LowLevelKeyboardProc? _keyboardProc;
 
+    // Extra GC roots for delegates passed to native code — prevents collection
+    // even if the WinEventHook wrapper is somehow the only other reference.
+    private NativeMethods.WinEventDelegate? _moveStartDelegate;
+    private NativeMethods.WinEventDelegate? _moveEndDelegate;
+
     private readonly ZoneOverlay _overlay;
     private List<ZoneDefinition> _zones = new();
     private SettingsConfig _settings = new();
     private Rectangle _workingArea;
     private bool _enabled = true;
     private bool _disposed;
+
+    private const int OBJID_WINDOW = 0;
 
     public bool Enabled
     {
@@ -56,15 +63,21 @@ internal sealed class SnapEngine : IDisposable
     /// </summary>
     public void Start()
     {
+        // Store delegates as explicit fields to guarantee they stay rooted for
+        // the entire lifetime of the engine — prevents GC from collecting the
+        // native callback thunks while the hooks are active.
+        _moveStartDelegate = OnMoveSizeStart;
+        _moveEndDelegate = OnMoveSizeEnd;
+
         _moveStartHook = new WinEventHook(
             NativeMethods.EVENT_SYSTEM_MOVESIZESTART,
             NativeMethods.EVENT_SYSTEM_MOVESIZESTART,
-            OnMoveSizeStart);
+            _moveStartDelegate);
 
         _moveEndHook = new WinEventHook(
             NativeMethods.EVENT_SYSTEM_MOVESIZEEND,
             NativeMethods.EVENT_SYSTEM_MOVESIZEEND,
-            OnMoveSizeEnd);
+            _moveEndDelegate);
 
         Logger.Info("SnapEngine started — hooks installed.");
     }
@@ -84,20 +97,40 @@ internal sealed class SnapEngine : IDisposable
         IntPtr hWinEventHook, uint eventType, IntPtr hwnd,
         int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
     {
-        if (!_enabled || _state != DragState.Idle) return;
-        if (hwnd == IntPtr.Zero) return;
+        // Only process top-level window events (OBJID_WINDOW == 0)
+        if (idObject != OBJID_WINDOW) return;
 
-        // Check if this window should be ignored
+        Logger.Info($"[EVENT] MOVESIZESTART hwnd=0x{hwnd:X} class=\"{GetClassName(hwnd)}\" title=\"{GetWindowTitle(hwnd)}\"");
+
+        if (!_enabled)
+        {
+            Logger.Info("[EVENT] Ignored: snapping is disabled.");
+            return;
+        }
+        if (_state != DragState.Idle)
+        {
+            Logger.Info($"[EVENT] Ignored: engine not idle (state={_state}).");
+            return;
+        }
+        if (hwnd == IntPtr.Zero)
+        {
+            Logger.Info("[EVENT] Ignored: null hwnd.");
+            return;
+        }
+
         if (ShouldIgnoreWindow(hwnd)) return;
 
-        // Check if activation modifier is held
-        if (!IsActivationModifierHeld()) return;
+        if (!IsActivationModifierHeld())
+        {
+            Logger.Info($"[EVENT] Ignored: activation modifier '{_settings.ActivationModifier}' not held.");
+            return;
+        }
 
         // Start drag
         _state = DragState.Active;
         _draggedHwnd = hwnd;
 
-        Logger.Info($"[DRAG_START] hwnd=0x{hwnd:X} window=\"{GetWindowTitle(hwnd)}\"");
+        Logger.Info($"[DRAG_START] hwnd=0x{hwnd:X} window=\"{GetWindowTitle(hwnd)}\" zones={_zones.Count} workArea={_workingArea}");
 
         // Show overlay
         _overlay.ShowOverlay(_workingArea);
@@ -116,6 +149,10 @@ internal sealed class SnapEngine : IDisposable
         IntPtr hWinEventHook, uint eventType, IntPtr hwnd,
         int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
     {
+        if (idObject != OBJID_WINDOW) return;
+
+        Logger.Info($"[EVENT] MOVESIZEEND hwnd=0x{hwnd:X} state={_state}");
+
         if (_state == DragState.Idle) return;
 
         var wasActive = _state == DragState.Active;
@@ -222,15 +259,27 @@ internal sealed class SnapEngine : IDisposable
     private bool ShouldIgnoreWindow(IntPtr hwnd)
     {
         // Ignore the overlay itself
-        if (hwnd == _overlay.Handle) return true;
+        if (hwnd == _overlay.Handle)
+        {
+            Logger.Info($"[EVENT] Ignored: hwnd 0x{hwnd:X} is the overlay window.");
+            return true;
+        }
 
         // Ignore taskbar
         var className = GetClassName(hwnd);
-        if (className is "Shell_TrayWnd" or "Shell_SecondaryTrayWnd") return true;
+        if (className is "Shell_TrayWnd" or "Shell_SecondaryTrayWnd")
+        {
+            Logger.Info($"[EVENT] Ignored: hwnd 0x{hwnd:X} is taskbar ({className}).");
+            return true;
+        }
 
-        // Ignore tool windows
-        var exStyle = NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
-        if ((exStyle & NativeMethods.WS_EX_TOOLWINDOW) != 0) return true;
+        // Ignore tool windows (WS_EX_TOOLWINDOW)
+        var exStyle = (long)NativeMethods.GetWindowLongPtr(hwnd, NativeMethods.GWL_EXSTYLE);
+        if ((exStyle & NativeMethods.WS_EX_TOOLWINDOW) != 0)
+        {
+            Logger.Info($"[EVENT] Ignored: hwnd 0x{hwnd:X} is a tool window (exStyle=0x{exStyle:X}).");
+            return true;
+        }
 
         return false;
     }
@@ -323,6 +372,8 @@ internal sealed class SnapEngine : IDisposable
         _moveEndHook?.Dispose();
         _moveStartHook = null;
         _moveEndHook = null;
+        _moveStartDelegate = null;
+        _moveEndDelegate = null;
 
         Logger.Info("SnapEngine disposed.");
     }
