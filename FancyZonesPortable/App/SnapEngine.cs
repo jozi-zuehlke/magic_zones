@@ -250,17 +250,54 @@ internal sealed class SnapEngine : IDisposable
         if (NativeMethods.IsZoomed(hwnd))
         {
             NativeMethods.ShowWindow(hwnd, NativeMethods.SW_RESTORE);
-            Logger.Info($"[SNAP] Restored maximized window before snapping.");
+            Logger.Info("[SNAP] Restored maximized window before snapping.");
         }
 
         var rect = zone.AbsoluteRect;
+
+        // Compensate for the invisible DWM extended frame border that modern
+        // Windows 10/11 windows have (~7 px on left, right, bottom; 0 on top).
+        // Without this, the visible window appears inset from the zone edges.
+        var border = GetInvisibleBorderSize(hwnd);
+        int x = rect.X - border.Left;
+        int y = rect.Y - border.Top;
+        int w = rect.Width + border.Left + border.Right;
+        int h = rect.Height + border.Top + border.Bottom;
+
         NativeMethods.SetWindowPos(
             hwnd, IntPtr.Zero,
-            rect.X, rect.Y, rect.Width, rect.Height,
+            x, y, w, h,
             NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE);
 
         var title = GetWindowTitle(hwnd);
-        Logger.Info($"[SNAP] hwnd=0x{hwnd:X} window=\"{title}\" zone=\"{zone.Id}\" rect={rect.X},{rect.Y},{rect.Width},{rect.Height}");
+        Logger.Info($"[SNAP] hwnd=0x{hwnd:X} window=\"{title}\" zone=\"{zone.Id}\" zone_rect={rect.X},{rect.Y},{rect.Width},{rect.Height} border=L{border.Left},T{border.Top},R{border.Right},B{border.Bottom}");
+    }
+
+    /// <summary>
+    /// Measures the invisible DWM border around a window by comparing GetWindowRect
+    /// (full frame including invisible border) with DwmGetWindowAttribute(EXTENDED_FRAME_BOUNDS)
+    /// (visible bounds only). Returns the per-side invisible margin.
+    /// </summary>
+    private static (int Left, int Top, int Right, int Bottom) GetInvisibleBorderSize(IntPtr hwnd)
+    {
+        if (!NativeMethods.GetWindowRect(hwnd, out var windowRect))
+            return (0, 0, 0, 0);
+
+        int hr = NativeMethods.DwmGetWindowAttribute(
+            hwnd,
+            NativeMethods.DWMWA_EXTENDED_FRAME_BOUNDS,
+            out var frameBounds,
+            System.Runtime.InteropServices.Marshal.SizeOf<NativeMethods.RECT>());
+
+        if (hr != 0)
+            return (0, 0, 0, 0);
+
+        return (
+            Left:   frameBounds.Left   - windowRect.Left,
+            Top:    frameBounds.Top    - windowRect.Top,
+            Right:  windowRect.Right   - frameBounds.Right,
+            Bottom: windowRect.Bottom  - frameBounds.Bottom
+        );
     }
 
     private bool IsActivationModifierHeld()

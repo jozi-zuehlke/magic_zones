@@ -18,6 +18,10 @@
   great. now please make the zones a bit transparent when showing them. currently they are fully opaque, hiding all the existing windows behind them
   ```
 
+  ```txt
+  great, this worked as well. it is looking really good now. I just found one minor issue. on my Windows 11 machine where I am testing this, when dropping a window ito a zone, there is a very small 2 or 3 pixel wide margin of space on the sides and the bottom compared to the actual zone. only the top of the window is flush with the zone / screen. I am using the default zone layout, which has a 50% width and full-height zone on the left. please check if this can be fixed
+  ```
+
 - no tests
 - single binary not built automatically
 - the app did not work on first try
