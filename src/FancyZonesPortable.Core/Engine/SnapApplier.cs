@@ -21,18 +21,22 @@ public class SnapApplier
         if (_windowManager.IsZoomed(hwnd))
             _windowManager.ShowWindow(hwnd, SW_RESTORE);
 
-        _windowManager.SetWindowPos(hwnd, zoneBounds.X, zoneBounds.Y, zoneBounds.Width, zoneBounds.Height);
+        var compensated = ComputeDwmCompensatedBounds(hwnd, zoneBounds);
 
-        CompensateForDwmFrame(hwnd, zoneBounds);
+        _windowManager.SetWindowPos(hwnd, compensated.X, compensated.Y, compensated.Width, compensated.Height);
 
         _logger.Info($"Snapped window 0x{hwnd:X} to zone ({zoneBounds.X}, {zoneBounds.Y}, {zoneBounds.Width}, {zoneBounds.Height})");
     }
 
-    private void CompensateForDwmFrame(nint hwnd, Rectangle zoneBounds)
+    /// <summary>
+    /// Measures DWM frame insets at the window's current position and applies them
+    /// to the target zone bounds, so only a single SetWindowPos call is needed.
+    /// </summary>
+    private Rectangle ComputeDwmCompensatedBounds(nint hwnd, Rectangle zoneBounds)
     {
         var extBounds = _windowManager.GetExtendedFrameBounds(hwnd);
         if (extBounds is null)
-            return;
+            return zoneBounds;
 
         var windowRect = _windowManager.GetWindowRect(hwnd);
         var ext = extBounds.Value;
@@ -43,14 +47,14 @@ public class SnapApplier
         int bottomInset = (windowRect.Y + windowRect.Height) - (ext.Y + ext.Height);
 
         if (leftInset == 0 && topInset == 0 && rightInset == 0 && bottomInset == 0)
-            return;
+            return zoneBounds;
 
-        _windowManager.SetWindowPos(hwnd,
+        _logger.Info($"DWM frame compensation: insets L={leftInset} T={topInset} R={rightInset} B={bottomInset}");
+
+        return new Rectangle(
             zoneBounds.X - leftInset,
             zoneBounds.Y - topInset,
             zoneBounds.Width + leftInset + rightInset,
             zoneBounds.Height + topInset + bottomInset);
-
-        _logger.Info($"DWM frame compensation: insets L={leftInset} T={topInset} R={rightInset} B={bottomInset}");
     }
 }

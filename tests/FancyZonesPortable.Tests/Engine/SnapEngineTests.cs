@@ -296,4 +296,56 @@ public class SnapEngineTests
         Assert.NotNull(result);
         Assert.Equal(new Rectangle(960, 0, 960, 1080), result.Value);
     }
+
+    // --- BeginDrag with initial cursor position (mid-drag activation) ---
+
+    [Fact]
+    public void BeginDrag_WithInitialCursorPosition_SetsActiveZoneImmediately()
+    {
+        var engine = CreateEngine();
+
+        // Simulate mid-drag activation: cursor is already in the right zone
+        engine.BeginDrag(TestWindowHandle, CreateTwoZoneMonitor(), WorkingArea, cursorX: 1200, cursorY: 500);
+
+        // ActiveZone should be set immediately — no UpdateCursorPosition needed
+        Assert.Equal(SnapState.DragActive, engine.State);
+        Assert.NotNull(engine.ActiveZone);
+        Assert.Equal("right", engine.ActiveZone.Definition.Id);
+    }
+
+    [Fact]
+    public void BeginDrag_WithInitialCursorInLeftZone_SetsLeftZoneActive()
+    {
+        var engine = CreateEngine();
+
+        engine.BeginDrag(TestWindowHandle, CreateTwoZoneMonitor(), WorkingArea, cursorX: 400, cursorY: 500);
+
+        Assert.NotNull(engine.ActiveZone);
+        Assert.Equal("left", engine.ActiveZone.Definition.Id);
+    }
+
+    [Fact]
+    public void BeginDrag_WithInitialCursorOutsideAllZones_ActiveZoneIsNull()
+    {
+        var engine = CreateEngine();
+
+        engine.BeginDrag(TestWindowHandle, CreateTwoZoneMonitor(), WorkingArea, cursorX: -100, cursorY: -100);
+
+        Assert.Equal(SnapState.DragActive, engine.State);
+        Assert.Null(engine.ActiveZone);
+    }
+
+    [Fact]
+    public void BeginDrag_WithInitialCursor_ThenCommit_SnapsToCorrectZone()
+    {
+        var engine = CreateEngine();
+
+        // Activate with cursor already in right zone
+        engine.BeginDrag(TestWindowHandle, CreateTwoZoneMonitor(), WorkingArea, cursorX: 1200, cursorY: 500);
+
+        // Commit immediately without any UpdateCursorPosition call
+        var result = engine.CommitSnap();
+        Assert.NotNull(result);
+        Assert.Equal(new Rectangle(960, 0, 960, 1080), result.Value);
+    }
 }

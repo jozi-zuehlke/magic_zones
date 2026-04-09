@@ -248,8 +248,9 @@ internal class AppContext : ApplicationContext
     {
         var workingArea = _screenInfo.GetPrimaryWorkingArea();
         var primaryMonitor = GetPrimaryMonitor(_config);
+        var (cursorX, cursorY) = _nativeInput.GetCursorPos();
 
-        _engine.BeginDrag(_trackedWindowHandle, primaryMonitor, workingArea);
+        _engine.BeginDrag(_trackedWindowHandle, primaryMonitor, workingArea, cursorX, cursorY);
 
         var resolveResult = _converter.Resolve(primaryMonitor, workingArea);
         _overlayRenderer.Show(BuildRenderInfos(resolveResult.Zones), workingArea);
@@ -258,6 +259,7 @@ internal class AppContext : ApplicationContext
         if (_overlayRenderer.Handle != 0)
             _windowFilter.SetOverlayHandle(_overlayRenderer.Handle);
 
+        _overlayRenderer.SetActiveZone(_engine.ActiveZone?.Definition.Id);
         _keyboardHook.Install();
     }
 

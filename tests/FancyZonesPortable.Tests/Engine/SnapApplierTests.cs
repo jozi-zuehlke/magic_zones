@@ -88,15 +88,17 @@ public class SnapApplierTests
         var hwnd = (nint)0x600;
         var zone = new Rectangle(100, 200, 800, 600);
         _windowManager.IsZoomed(hwnd).Returns(false);
-        // After first SetWindowPos, GetWindowRect returns the full window rect
-        _windowManager.GetWindowRect(hwnd).Returns(new Rectangle(100, 200, 800, 600));
+        // Window is at some arbitrary position BEFORE snapping
+        _windowManager.GetWindowRect(hwnd).Returns(new Rectangle(500, 300, 800, 600));
         // DWM reports the visible area is smaller by 7px on left, right, bottom; 0 on top
-        _windowManager.GetExtendedFrameBounds(hwnd).Returns(new Rectangle(107, 200, 786, 593));
+        _windowManager.GetExtendedFrameBounds(hwnd).Returns(new Rectangle(507, 300, 786, 593));
 
         var applier = new SnapApplier(_windowManager, _logger);
         applier.Apply(hwnd, zone);
 
-        // Second call should expand outward to compensate for invisible borders
+        // Single SetWindowPos call with compensated coordinates (no visible jump)
+        _windowManager.Received(1).SetWindowPos(hwnd,
+            Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>());
         _windowManager.Received(1).SetWindowPos(hwnd, 93, 200, 814, 607);
     }
 
@@ -106,14 +108,16 @@ public class SnapApplierTests
         var hwnd = (nint)0x700;
         var zone = new Rectangle(100, 200, 800, 600);
         _windowManager.IsZoomed(hwnd).Returns(false);
-        _windowManager.GetWindowRect(hwnd).Returns(new Rectangle(100, 200, 800, 600));
-        // Visible bounds match window rect exactly — no invisible borders
-        _windowManager.GetExtendedFrameBounds(hwnd).Returns(new Rectangle(100, 200, 800, 600));
+        // Window at pre-snap position with no invisible borders
+        _windowManager.GetWindowRect(hwnd).Returns(new Rectangle(400, 100, 800, 600));
+        _windowManager.GetExtendedFrameBounds(hwnd).Returns(new Rectangle(400, 100, 800, 600));
 
         var applier = new SnapApplier(_windowManager, _logger);
         applier.Apply(hwnd, zone);
 
-        // Only the initial SetWindowPos, no compensation call
+        // Single SetWindowPos with unmodified zone bounds
+        _windowManager.Received(1).SetWindowPos(hwnd,
+            Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>());
         _windowManager.Received(1).SetWindowPos(hwnd, 100, 200, 800, 600);
     }
 
@@ -139,13 +143,17 @@ public class SnapApplierTests
         // Right-half zone on a 1920x1080 monitor
         var zone = new Rectangle(960, 0, 960, 1080);
         _windowManager.IsZoomed(hwnd).Returns(false);
-        _windowManager.GetWindowRect(hwnd).Returns(new Rectangle(960, 0, 960, 1080));
+        // Window at pre-snap position
+        _windowManager.GetWindowRect(hwnd).Returns(new Rectangle(200, 100, 960, 1080));
         // Typical Win11: 7px left, 0px top, 7px right, 7px bottom
-        _windowManager.GetExtendedFrameBounds(hwnd).Returns(new Rectangle(967, 0, 946, 1073));
+        _windowManager.GetExtendedFrameBounds(hwnd).Returns(new Rectangle(207, 100, 946, 1073));
 
         var applier = new SnapApplier(_windowManager, _logger);
         applier.Apply(hwnd, zone);
 
+        // Single SetWindowPos call with compensated coordinates
+        _windowManager.Received(1).SetWindowPos(hwnd,
+            Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>());
         _windowManager.Received(1).SetWindowPos(hwnd, 953, 0, 974, 1087);
     }
 }

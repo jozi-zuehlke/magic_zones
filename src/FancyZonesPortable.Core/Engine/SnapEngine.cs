@@ -63,6 +63,26 @@ public class SnapEngine
     }
 
     /// <summary>
+    /// Called when snapping is activated mid-drag. Transitions from IDLE to DRAG_ACTIVE
+    /// and immediately hit-tests the given cursor position so the correct zone is
+    /// highlighted from the very first frame.
+    /// </summary>
+    /// <param name="windowHandle">The handle of the window being dragged.</param>
+    /// <param name="monitor">The monitor configuration to use.</param>
+    /// <param name="workingArea">The monitor's working area in pixels.</param>
+    /// <param name="cursorX">Current cursor X position in pixels.</param>
+    /// <param name="cursorY">Current cursor Y position in pixels.</param>
+    public void BeginDrag(nint windowHandle, MonitorConfig monitor, Rectangle workingArea, int cursorX, int cursorY)
+    {
+        BeginDrag(windowHandle, monitor, workingArea);
+
+        if (_state == SnapState.DragActive)
+        {
+            _activeZone = _hitTester.HitTest(_resolvedZones, cursorX, cursorY);
+        }
+    }
+
+    /// <summary>
     /// Called on each cursor move during drag. Updates the active zone.
     /// </summary>
     /// <param name="cursorX">Cursor X position in pixels.</param>

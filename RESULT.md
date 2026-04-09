@@ -43,6 +43,15 @@
   don't do them in parallel, do them sequentially. also, remember that you are the engineering
   ```
 
+  ```txt
+  great, the changes are mostly working exactly like I wanted. however, I still have some minor improvement requests:
+
+  - the 7px fix was applied in a way that first the wrong position is set, and then the offset fix is applied; this leads to a visible movement of the window after it is dropped into a zone; I want the window position to be set only once to the correct final position, accounting for any offsets
+  - when starting to drag a window in one zone, and then moving it into another zone without activating the shortcut, and _then_ activating the shortcut while the window is on top of the other zone, the wrong zone is briefly showing as activated; so, for example with a left and right zone, when I drag a window from the left to the right of the screen, and then press shift, then the left zone is briefly showing as activated; we need to ensure that the initially active zone considers the current cursor position, even if we are already dragging a window
+
+  don't do these changes in parallel, do them sequentially. also, remember that you are the engineering manager, so don't implement anything yourself, delegate everything to sub-agents, including root cause analysis
+  ```
+
 - created a nice architecture, including tests
 - did not create single executable by itself, and created no scrips to run the publish
 - it created an app that crashed on launch
