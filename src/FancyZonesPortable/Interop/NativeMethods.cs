@@ -29,6 +29,11 @@ internal static partial class NativeMethods
     [LibraryImport("user32.dll")]
     public static partial nint GetForegroundWindow();
 
+    [LibraryImport("dwmapi.dll")]
+    public static partial int DwmGetWindowAttribute(nint hwnd, int dwAttribute, out RECT pvAttribute, int cbAttribute);
+
+    public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
+
     [LibraryImport("user32.dll")]
     public static partial int GetWindowLongA(nint hWnd, int nIndex);
 
@@ -81,11 +86,52 @@ internal static partial class NativeMethods
     public const uint WINEVENT_OUTOFCONTEXT = 0x0000;
     public const int WH_KEYBOARD_LL = 13;
 
+    // UpdateLayeredWindow and GDI helpers for per-pixel alpha transparency
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool UpdateLayeredWindow(
+        nint hwnd, nint hdcDst, ref POINT pptDst, ref SIZE psize,
+        nint hdcSrc, ref POINT pptSrc, uint crKey, ref BLENDFUNCTION pblend, uint dwFlags);
+
+    [LibraryImport("gdi32.dll")]
+    public static partial nint SelectObject(nint hdc, nint hgdiobj);
+
+    [LibraryImport("gdi32.dll")]
+    public static partial nint CreateCompatibleDC(nint hdc);
+
+    [LibraryImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool DeleteDC(nint hdc);
+
+    [LibraryImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool DeleteObject(nint hObject);
+
+    public const uint ULW_ALPHA = 0x02;
+    public const byte AC_SRC_OVER = 0;
+    public const byte AC_SRC_ALPHA = 1;
+
     [StructLayout(LayoutKind.Sequential)]
     public struct POINT
     {
         public int X;
         public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SIZE
+    {
+        public int cx;
+        public int cy;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct BLENDFUNCTION
+    {
+        public byte BlendOp;
+        public byte BlendFlags;
+        public byte SourceConstantAlpha;
+        public byte AlphaFormat;
     }
 
     [StructLayout(LayoutKind.Sequential)]

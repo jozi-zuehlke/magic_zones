@@ -46,4 +46,18 @@ internal class WindowManager : IWindowManager
     {
         return NativeMethods.GetForegroundWindow();
     }
+
+    public Rectangle? GetExtendedFrameBounds(nint hwnd)
+    {
+        int hr = NativeMethods.DwmGetWindowAttribute(
+            hwnd,
+            NativeMethods.DWMWA_EXTENDED_FRAME_BOUNDS,
+            out NativeMethods.RECT rect,
+            System.Runtime.InteropServices.Marshal.SizeOf<NativeMethods.RECT>());
+
+        if (hr != 0)
+            return null;
+
+        return new Rectangle(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top);
+    }
 }

@@ -30,7 +30,7 @@ internal class OverlayRenderer : IOverlayRenderer
         EnsureOverlay();
         _overlay!.SetOverlayBounds(workingArea.X, workingArea.Y, workingArea.Width, workingArea.Height);
         _overlay.SetZones(zones);
-        _overlay.Show();
+        _overlay.ShowTopMost();
     }
 
     public void SetActiveZone(string? zoneId)

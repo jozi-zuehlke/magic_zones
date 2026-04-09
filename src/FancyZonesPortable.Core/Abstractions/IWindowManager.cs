@@ -39,6 +39,12 @@ public interface IWindowManager
     /// Gets the foreground (active) window handle.
     /// </summary>
     nint GetForegroundWindow();
+
+    /// <summary>
+    /// Gets the extended frame bounds (visible area) of a window using DWM.
+    /// Returns null if the DWM call fails or is unavailable.
+    /// </summary>
+    Rectangle? GetExtendedFrameBounds(nint hwnd);
 }
 
 /// <summary>

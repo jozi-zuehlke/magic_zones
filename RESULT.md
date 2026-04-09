@@ -32,5 +32,19 @@
     </log>
   ```
 
+  ```txt
+  great, now the app is working, well done. however, I have a few improvement requests. please spawn a sub-agent for each of my requests to implement each one using red-green TDD. my requests are:
+
+  - currently the overlay is not always on top. if I activate other windows after launching the app, and then activate the shortcut for moving a window, the blue overlay is getting rendered behind the other window, but it should always be on top
+  - currently, you have to hold shift first and then start dragging the window, but with the real FancyZones, you can start dragging a window and then hold the activation key, and it will immediately activate the positioning mode; and if you release the activation key without dropping the window, then the positioning mode is canceled. please change our logic so that it works the same way
+  - currently the overlay is not properly transparent, but fully opaque. I want the overlay to be transparent so that I can see other windows in the background when dragging a new one over them; this also matches the original FancyZones
+  - on my Windows 11 system, when dragging a window into a zone, there seems to be a 7px gap on the sides and at the bottom; only at the top is the window flush with the zone border; please make sure that windows are fully covering the zone 
+
+  don't do them in parallel, do them sequentially. also, remember that you are the engineering
+  ```
+
+- created a nice architecture, including tests
+- did not create single executable by itself, and created no scrips to run the publish
 - it created an app that crashed on launch
 - was able to fix the blocking bug after one prompt, then just worked
+- was able to implement my feature requests with tests

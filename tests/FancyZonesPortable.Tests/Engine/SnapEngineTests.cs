@@ -256,4 +256,44 @@ public class SnapEngineTests
         Assert.Equal(SnapState.DragActive, engine.State);
         Assert.Equal(newHandle, engine.DraggedWindow);
     }
+
+    [Fact]
+    public void MultipleDragCycles_WithoutReset_WorkCorrectly()
+    {
+        var engine = CreateEngine();
+
+        // First cycle: begin → cancel
+        engine.BeginDrag(TestWindowHandle, CreateTwoZoneMonitor(), WorkingArea);
+        engine.CancelDrag();
+        Assert.Equal(SnapState.Idle, engine.State);
+
+        // Second cycle: begin → move → commit → returns zone
+        engine.BeginDrag(TestWindowHandle, CreateTwoZoneMonitor(), WorkingArea);
+        engine.UpdateCursorPosition(1200, 500);
+        var result = engine.CommitSnap();
+        Assert.NotNull(result);
+        Assert.Equal(new Rectangle(960, 0, 960, 1080), result.Value);
+        Assert.Equal(SnapState.Idle, engine.State);
+    }
+
+    [Fact]
+    public void BeginDrag_CancelDrag_BeginDrag_DifferentCursorPosition()
+    {
+        var engine = CreateEngine();
+
+        // First activation: cursor in left zone
+        engine.BeginDrag(TestWindowHandle, CreateTwoZoneMonitor(), WorkingArea);
+        engine.UpdateCursorPosition(400, 500);
+        Assert.Equal("left", engine.ActiveZone!.Definition.Id);
+        engine.CancelDrag();
+
+        // Second activation: cursor in right zone
+        engine.BeginDrag(TestWindowHandle, CreateTwoZoneMonitor(), WorkingArea);
+        engine.UpdateCursorPosition(1200, 500);
+        Assert.Equal("right", engine.ActiveZone!.Definition.Id);
+
+        var result = engine.CommitSnap();
+        Assert.NotNull(result);
+        Assert.Equal(new Rectangle(960, 0, 960, 1080), result.Value);
+    }
 }

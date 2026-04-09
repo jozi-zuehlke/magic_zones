@@ -40,6 +40,10 @@ internal class AppContext : ApplicationContext
     private int _activationModifierVk;
     private bool _enabled;
 
+    // Tracking state: we monitor the drag even before the modifier is pressed
+    private bool _trackingDrag;
+    private nint _trackedWindowHandle;
+
     public AppContext()
     {
         _syncContext = SynchronizationContext.Current ?? new SynchronizationContext();
@@ -227,16 +231,25 @@ internal class AppContext : ApplicationContext
         if (!_enabled)
             return;
 
-        if (!_nativeInput.IsKeyPressed(_activationModifierVk))
-            return;
-
         if (!_windowFilter.ShouldSnap(e.WindowHandle))
             return;
 
+        // Enter tracking state for every eligible drag
+        _trackingDrag = true;
+        _trackedWindowHandle = e.WindowHandle;
+        _cursorTimer.Start();
+
+        // If modifier is already held, activate immediately
+        if (_nativeInput.IsKeyPressed(_activationModifierVk))
+            ActivateSnapping();
+    }
+
+    private void ActivateSnapping()
+    {
         var workingArea = _screenInfo.GetPrimaryWorkingArea();
         var primaryMonitor = GetPrimaryMonitor(_config);
 
-        _engine.BeginDrag(e.WindowHandle, primaryMonitor, workingArea);
+        _engine.BeginDrag(_trackedWindowHandle, primaryMonitor, workingArea);
 
         var resolveResult = _converter.Resolve(primaryMonitor, workingArea);
         _overlayRenderer.Show(BuildRenderInfos(resolveResult.Zones), workingArea);
@@ -246,23 +259,34 @@ internal class AppContext : ApplicationContext
             _windowFilter.SetOverlayHandle(_overlayRenderer.Handle);
 
         _keyboardHook.Install();
-        _cursorTimer.Start();
     }
 
     private void OnCursorTimerTick(object? sender, EventArgs e)
     {
-        if (_engine.State != SnapState.DragActive)
+        if (!_trackingDrag)
             return;
 
-        if (!_nativeInput.IsKeyPressed(_activationModifierVk))
+        bool modifierHeld = _nativeInput.IsKeyPressed(_activationModifierVk);
+
+        if (_engine.State == SnapState.DragActive)
         {
-            CancelDrag();
-            return;
-        }
+            // Active state: if modifier released, deactivate back to tracking
+            if (!modifierHeld)
+            {
+                CancelDrag();
+                return;
+            }
 
-        var (cursorX, cursorY) = _nativeInput.GetCursorPos();
-        _engine.UpdateCursorPosition(cursorX, cursorY);
-        _overlayRenderer.SetActiveZone(_engine.ActiveZone?.Definition.Id);
+            // Normal cursor update while active
+            var (cursorX, cursorY) = _nativeInput.GetCursorPos();
+            _engine.UpdateCursorPosition(cursorX, cursorY);
+            _overlayRenderer.SetActiveZone(_engine.ActiveZone?.Definition.Id);
+        }
+        else if (modifierHeld)
+        {
+            // Tracking state: modifier just pressed → activate
+            ActivateSnapping();
+        }
     }
 
     private void OnKeyPressed(object? sender, KeyboardHookEventArgs e)
@@ -273,30 +297,44 @@ internal class AppContext : ApplicationContext
 
     private void OnWindowMoveEnded(object? sender, WinEventArgs e)
     {
-        if (_engine.State != SnapState.DragActive)
-            return;
+        if (_engine.State == SnapState.DragActive)
+        {
+            var (cursorX, cursorY) = _nativeInput.GetCursorPos();
+            _engine.UpdateCursorPosition(cursorX, cursorY);
 
-        var (cursorX, cursorY) = _nativeInput.GetCursorPos();
-        _engine.UpdateCursorPosition(cursorX, cursorY);
+            // Capture before CommitSnap resets engine state
+            var draggedWindow = _engine.DraggedWindow;
+            var result = _engine.CommitSnap();
 
-        // Capture before CommitSnap resets engine state
-        var draggedWindow = _engine.DraggedWindow;
-        var result = _engine.CommitSnap();
+            if (result != null)
+                _snapApplier.Apply(draggedWindow, result.Value);
 
-        if (result != null)
-            _snapApplier.Apply(draggedWindow, result.Value);
+            _overlayRenderer.Hide();
+            _keyboardHook.Uninstall();
+        }
 
-        _overlayRenderer.Hide();
-        _cursorTimer.Stop();
-        _keyboardHook.Uninstall();
+        StopTracking();
     }
 
+    /// <summary>
+    /// Cancels the active snap session (overlay + hook) but keeps tracking the drag
+    /// so the user can re-press the modifier to reactivate.
+    /// </summary>
     private void CancelDrag()
     {
         _engine.CancelDrag();
         _overlayRenderer.Hide();
-        _cursorTimer.Stop();
         _keyboardHook.Uninstall();
+    }
+
+    /// <summary>
+    /// Fully stops tracking the current window drag.
+    /// </summary>
+    private void StopTracking()
+    {
+        _cursorTimer.Stop();
+        _trackingDrag = false;
+        _trackedWindowHandle = 0;
     }
 
     // ── Tray menu handlers ────────────────────────────────────────
