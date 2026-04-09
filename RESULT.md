@@ -18,4 +18,19 @@
   you only accept the result once you are happy with the quality and are willing to take accountability for any issues that are found in production
   ```
 
+  ```txt
+  when running the app, it immediately crashes with this error in the logs:
+
+    <log>
+    [2026-04-09 18:22:58.971] [ERROR] Unhandled domain exception. | System.ArgumentNullException: Value cannot be null. (Parameter 'path1')
+    at System.ArgumentNullException.Throw(String paramName)
+    at System.IO.Path.Combine(String path1, String path2)
+    at FancyZonesPortable.Core.Config.ConfigLoader.DiscoverConfigPath()
+    at FancyZonesPortable.Core.Config.ConfigLoader.Load()
+    at FancyZonesPortable.App.AppContext..ctor()
+    at FancyZonesPortable.Program.Main()
+    </log>
+  ```
+
 - it created an app that crashed on launch
+- was able to fix the blocking bug after one prompt, then just worked

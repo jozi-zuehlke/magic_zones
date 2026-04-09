@@ -1,4 +1,3 @@
-using System.Reflection;
 using FancyZonesPortable.Core.Abstractions;
 
 namespace FancyZonesPortable.Interop;
@@ -18,8 +17,18 @@ internal class PhysicalFileSystem : IFileSystem
 
     public void CreateDirectory(string path) => Directory.CreateDirectory(path);
 
-    public string GetExecutableDirectory() =>
-        Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location)!;
+    public string GetExecutableDirectory()
+    {
+        // Environment.ProcessPath works for single-file deployments where
+        // Assembly.GetEntryAssembly().Location returns empty string.
+        var processPath = Environment.ProcessPath;
+        if (!string.IsNullOrEmpty(processPath))
+        {
+            return Path.GetDirectoryName(processPath) ?? AppContext.BaseDirectory;
+        }
+
+        return AppContext.BaseDirectory;
+    }
 
     public string GetAppDataPath() =>
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
