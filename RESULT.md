@@ -63,9 +63,14 @@
     </log>
   ```
 
+  ```txt
+  great, now the app is fully working. there is one thing I noticed though: there is a noticeable, roughly 500ms delay before the zones are highlighted once the shortcut is activated while dragging a window and also when starting to drag a window while the shortcut is already pressed. is this something we do in our code, or is this some windows delay maybe? please spawn a sub-agent to investigate and fix
+  ```
+
 - created a nice architecture, including tests
 - did not create single executable by itself, and created no scrips to run the publish
 - it created an app that crashed on launch
 - was able to fix the blocking bug after one prompt, then just worked
 - was able to implement my feature requests with tests
 - was not able to fix one bug on first try, but was on second
+- was able to change architecture for key detection to make activation more snappy

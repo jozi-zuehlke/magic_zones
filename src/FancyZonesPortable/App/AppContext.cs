@@ -100,9 +100,10 @@ internal class AppContext : ApplicationContext
         _winEventHook.WindowMoveEnded += OnWindowMoveEnded;
         _winEventHook.Start();
 
-        // 14. Create KeyboardHook (installed only during drag)
+        // 14. Create KeyboardHook (installed during drag tracking for instant modifier detection)
         _keyboardHook = new KeyboardHook();
         _keyboardHook.KeyPressed += OnKeyPressed;
+        _keyboardHook.KeyReleased += OnKeyReleased;
 
         // 15. Parse activation modifier
         _activationModifierVk = SettingsParser.ParseModifierKey(_config.Settings.ActivationModifier) ?? 0x10;
@@ -237,6 +238,7 @@ internal class AppContext : ApplicationContext
         // Enter tracking state for every eligible drag
         _trackingDrag = true;
         _trackedWindowHandle = e.WindowHandle;
+        _keyboardHook.Install();
         _cursorTimer.Start();
 
         // If modifier is already held, activate immediately
@@ -246,6 +248,9 @@ internal class AppContext : ApplicationContext
 
     private void ActivateSnapping()
     {
+        if (_engine.State == SnapState.DragActive)
+            return;
+
         var workingArea = _screenInfo.GetPrimaryWorkingArea();
         var primaryMonitor = GetPrimaryMonitor(_config);
         var (cursorX, cursorY) = _nativeInput.GetCursorPos();
@@ -261,8 +266,6 @@ internal class AppContext : ApplicationContext
         // Pass overlay HWND to filter after first show (form handle is created on Show)
         if (_overlayRenderer.Handle != 0)
             _windowFilter.SetOverlayHandle(_overlayRenderer.Handle);
-
-        _keyboardHook.Install();
     }
 
     private void OnCursorTimerTick(object? sender, EventArgs e)
@@ -296,7 +299,28 @@ internal class AppContext : ApplicationContext
     private void OnKeyPressed(object? sender, KeyboardHookEventArgs e)
     {
         if (e.VirtualKeyCode == VK_ESCAPE)
+        {
             CancelDrag();
+            return;
+        }
+
+        // Instant modifier activation via keyboard hook (no polling delay)
+        if (_trackingDrag
+            && _engine.State != SnapState.DragActive
+            && ModifierKeyMapper.IsModifierMatch(e.VirtualKeyCode, _activationModifierVk))
+        {
+            ActivateSnapping();
+        }
+    }
+
+    private void OnKeyReleased(object? sender, KeyboardHookEventArgs e)
+    {
+        // Instant modifier deactivation via keyboard hook
+        if (_engine.State == SnapState.DragActive
+            && ModifierKeyMapper.IsModifierMatch(e.VirtualKeyCode, _activationModifierVk))
+        {
+            CancelDrag();
+        }
     }
 
     private void OnWindowMoveEnded(object? sender, WinEventArgs e)
@@ -314,7 +338,6 @@ internal class AppContext : ApplicationContext
                 _snapApplier.Apply(draggedWindow, result.Value);
 
             _overlayRenderer.Hide();
-            _keyboardHook.Uninstall();
         }
 
         StopTracking();
@@ -323,12 +346,12 @@ internal class AppContext : ApplicationContext
     /// <summary>
     /// Cancels the active snap session (overlay + hook) but keeps tracking the drag
     /// so the user can re-press the modifier to reactivate.
+    /// The keyboard hook stays installed for instant re-activation.
     /// </summary>
     private void CancelDrag()
     {
         _engine.CancelDrag();
         _overlayRenderer.Hide();
-        _keyboardHook.Uninstall();
     }
 
     /// <summary>
@@ -337,6 +360,7 @@ internal class AppContext : ApplicationContext
     private void StopTracking()
     {
         _cursorTimer.Stop();
+        _keyboardHook.Uninstall();
         _trackingDrag = false;
         _trackedWindowHandle = 0;
     }

@@ -9,12 +9,16 @@ namespace FancyZonesPortable.Interop;
 internal class KeyboardHook : IKeyboardHook
 {
     private const int WM_KEYDOWN = 0x0100;
+    private const int WM_KEYUP = 0x0101;
+    private const int WM_SYSKEYDOWN = 0x0104;
+    private const int WM_SYSKEYUP = 0x0105;
 
     private nint _hookHandle;
     // Must hold a reference to prevent GC collection of the delegate
     private NativeMethods.LowLevelKeyboardProc? _callback;
 
     public event EventHandler<KeyboardHookEventArgs>? KeyPressed;
+    public event EventHandler<KeyboardHookEventArgs>? KeyReleased;
 
     public void Install()
     {
@@ -31,10 +35,14 @@ internal class KeyboardHook : IKeyboardHook
 
     private nint HookCallback(int nCode, nint wParam, nint lParam)
     {
-        if (nCode >= 0 && wParam == WM_KEYDOWN)
+        if (nCode >= 0)
         {
             int vkCode = Marshal.ReadInt32(lParam);
-            KeyPressed?.Invoke(this, new KeyboardHookEventArgs { VirtualKeyCode = vkCode });
+
+            if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN)
+                KeyPressed?.Invoke(this, new KeyboardHookEventArgs { VirtualKeyCode = vkCode });
+            else if (wParam == WM_KEYUP || wParam == WM_SYSKEYUP)
+                KeyReleased?.Invoke(this, new KeyboardHookEventArgs { VirtualKeyCode = vkCode });
         }
         return NativeMethods.CallNextHookEx(_hookHandle, nCode, wParam, lParam);
     }
