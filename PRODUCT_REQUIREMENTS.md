@@ -14,13 +14,13 @@ Microsoft PowerToys' FancyZones feature lets Windows users define custom screen 
 
 No free, portable, zero-installation window zone manager exists for Windows that a corporate user can place in their Documents folder or a USB drive and run without escalated privileges.
 
-**The solution:** A self-contained .NET 10 single-binary application that reads a JSON config file from its own directory. Users carry it on a USB stick or drop it in their user profile folder, configure it once, and use it across any corporate machine without IT involvement.
+**The solution:** A framework-dependent .NET 8 single-binary application that reads a JSON config file from its own directory. Users carry it on a USB stick or drop it in their user profile folder, configure it once, and use it across any corporate machine without IT involvement.
 
 ---
 
 ## 2. Goals
 
-1. **Zero-installation portability.** A single `.exe` that runs from any user-writable directory with no dependency on an installed .NET runtime, no registry writes, and no elevation required.
+1. **Portable single-binary deployment.** A single `.exe` that runs from any user-writable directory with no installer, no registry writes, and no elevation required.
 2. **Familiar zone-snapping UX.** Hold Shift and drag a window → a highlight overlay shows the nearest zone → release the mouse to snap the window to that zone.
 3. **Config-file-driven layout.** All zone definitions are expressed in a human-readable JSON file editable in Notepad. No GUI editor required.
 4. **Low resource footprint.** Under 30 MB private working set at idle; negligible CPU when not dragging.
@@ -108,8 +108,8 @@ No free, portable, zero-installation window zone manager exists for Windows that
 ## 6. Technical Requirements
 
 ### 6.1 Runtime and Deployment
-- **TR-01** Written in C# targeting .NET 10.
-- **TR-02** Published as a self-contained single-file executable: `dotnet publish -r win-x64 --self-contained true -p:PublishSingleFile=true`. No companion DLLs, no runtime config files.
+- **TR-01** Written in C# targeting .NET 8.
+- **TR-02** Published as a framework-dependent single-file executable: `dotnet publish -r win-x64 --self-contained false -p:PublishSingleFile=true`. No companion DLLs, no runtime config files.
 - **TR-03** Primary target: `win-x64`. `win-arm64` is desirable but not required for v1.
 - **TR-04** No UAC elevation required. All required APIs (`SetWinEventHook`, `SetWindowsHookEx`, `SetWindowPos`, `RegisterHotKey`, `NotifyIcon`) are available to standard user accounts.
 - **TR-05** No writes to `HKLM` or any HKEY_LOCAL_MACHINE path. Avoid all registry writes.
@@ -133,7 +133,7 @@ No free, portable, zero-installation window zone manager exists for Windows that
 
 - **TR-07** The low-level mouse hook (`WH_MOUSE_LL`) is installed only during an active Shift+drag, not permanently, to minimize global hook overhead.
 - **TR-08** Hook callbacks must be fast (<50 ms). They post a message or update a volatile field; rendering is deferred to the UI thread.
-- **TR-09** JSON deserialization uses `System.Text.Json` (built into .NET 10; no extra NuGet dependencies for config).
+- **TR-09** JSON deserialization uses `System.Text.Json` (built into .NET 8; no extra NuGet dependencies for config).
 - **TR-10** A `FileSystemWatcher` on `zones.json` enables automatic reload on file save, with a 500 ms debounce.
 - **TR-11** The application declares Per-Monitor DPI Aware v2 in its application manifest.
 
@@ -147,7 +147,7 @@ No free, portable, zero-installation window zone manager exists for Windows that
 ## 7. Config File Format
 
 ### 7.1 Design Principles
-- Human-editable JSON (not YAML/TOML) — `System.Text.Json` built into .NET 10.
+- Human-editable JSON (not YAML/TOML) — `System.Text.Json` built into .NET 8.
 - Supports pixel or percentage coordinates for resolution independence.
 - Unknown JSON properties are silently ignored (forward-compatible).
 - Multi-monitor-ready in schema; v1 engine only processes primary monitor zones.
@@ -310,7 +310,7 @@ The v1 MVP delivers exactly these features:
 
 | # | Feature |
 |---|---------|
-| 1 | Single-file self-contained `.exe`; no installer; no admin rights |
+| 1 | Single-file framework-dependent `.exe`; no installer; no admin rights |
 | 2 | Read `zones.json` from exe directory (fallback `%APPDATA%`) |
 | 3 | Generate default `zones.json` on first run |
 | 4 | System tray: Enable/Disable, Reload Config, Open Config File, About, Exit |
@@ -326,7 +326,7 @@ The v1 MVP delivers exactly these features:
 | 14 | Restore maximized windows before snapping |
 
 **MVP Success Criteria:**
-1. Runs on clean Windows 10 22H2 / Windows 11 with no .NET runtime installed and no admin account.
+1. Runs on Windows 10 22H2 / Windows 11 with .NET 8 runtime installed and no admin account.
 2. ≥ 8 non-overlapping zones reliably snappable.
 3. Overlapping zones with distinct priorities always resolve to the expected zone.
 4. < 30 MB private working set at idle.
@@ -357,7 +357,7 @@ The v1 MVP delivers exactly these features:
 
 ```
 FancyZonesPortable/
-  FancyZonesPortable.csproj      # net10.0-windows, UseWindowsForms, PublishSingleFile
+  FancyZonesPortable.csproj      # net8.0-windows, UseWindowsForms, PublishSingleFile
   Program.cs                     # Entry point, Application.Run(new AppContext())
   App/
     AppContext.cs                 # ApplicationContext subclass; owns NotifyIcon, engine

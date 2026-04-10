@@ -31,8 +31,8 @@ tasks:
       - dotnet test FancyZonesPortable.sln -c {{.CONFIGURATION}} --no-restore --logger "trx;LogFileName=test-results.trx"
 
   publish:
-    desc: Publish self-contained single-file Windows executable
-    deps: [build]
+    desc: Publish framework-dependent single-file Windows executable
+    deps: [restore]
     cmds:
       - rm -rf .publish
       - mkdir -p .publish
@@ -40,12 +40,13 @@ tasks:
         dotnet publish src/FancyZonesPortable/FancyZonesPortable.csproj
         -c {{.CONFIGURATION}}
         -r {{.RUNTIME}}
-        --self-contained true
+        --self-contained false
         -o .publish
         -p:PublishSingleFile=true
         -p:PublishTrimmed=false
         -p:DebugType=None
-        --no-build
+        -p:DebugSymbols=false
+        --no-restore
 
   publish-with-image:
     desc: Build container image with Podman

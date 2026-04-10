@@ -1,6 +1,6 @@
 # FancyZones Portable
 
-A self-contained, zero-installation Windows window zone manager for corporate users who lack admin rights.
+A portable Windows window zone manager for corporate users who lack admin rights.
 
 ## What it does
 
@@ -10,5 +10,5 @@ Users hold Shift while dragging a window; an overlay highlights the nearest zone
 
 - Single `.exe`, no installer, no UAC prompts, no registry writes, no network access
 - Runs from any user-writable location (USB stick, Documents folder)
-- Bundles the .NET 10 runtime — no external dependencies required on the host machine
+- Framework-dependent .NET 8 executable (requires the .NET 8 runtime on the host machine)
 - Targets Windows only

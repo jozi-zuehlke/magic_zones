@@ -9,7 +9,6 @@ tools:
   delta: ((system))
   direnv: ((system))
   dotnet8: ((system))
-  dotnet10: ((system))
   eza: ((system))
   fd: ((system))
   fzf: ((system))
