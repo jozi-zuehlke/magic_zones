@@ -177,6 +177,77 @@
   </log>
   ```
 
+  ```txt
+  the app is fully working, but there is a minor issue I noticed: when I hold the activation key (e.g. shift) and then move a window for the first time, the overlay gets rendered correctly; but when I drop the window and then start dragging it again, the overlay is not getting rendered during the dragging, just for a split second when I drop the window; I assume we have some bug in the shortcut press detection that does not pick up that the shortcut is already still pressed from a previous activation. please investigate how we can get rid of this delay and make the activation instantaneous. once you have found a way to do it, implement it using red-green TDD.
+
+    <log>
+    [2026-04-10 07:48:44.127] [DEBUG] Window move started event for window 0x20C44.
+    [2026-04-10 07:48:44.131] [DEBUG] Started drag tracking for window 0x20C44; keyboard hook installed and cursor timer started.
+    [2026-04-10 07:48:44.131] [DEBUG] Activation modifier already held at drag start; activating snapping immediately.
+    [2026-04-10 07:48:44.132] [DEBUG] Activating snapping for window 0x20C44 at cursor (833, 19) on monitor 'primary'.
+    [2026-04-10 07:48:44.132] [DEBUG] BeginDrag requested for window 0x20C44 while in state 'Idle'.
+    [2026-04-10 07:48:44.132] [DEBUG] Resolved 3 zones for monitor 'primary' in working area (0, 0, 3440, 1440).
+    [2026-04-10 07:48:44.132] [INFO] Drag started for window 0x20C44.
+    [2026-04-10 07:48:44.132] [DEBUG] Activation cursor at (833, 19) selected initial zone 'left-half'.
+    [2026-04-10 07:48:44.132] [DEBUG] Starting overlay render cycle with 3 zones; initial active zone 'left-half'.
+    [2026-04-10 07:48:44.133] [DEBUG] Starting overlay rendering for 3 zones in bounds (0, 0, 3440, 1440) with active zone 'left-half'.
+    [2026-04-10 07:48:44.204] [DEBUG] Overlay handle registered with window filter: 0x390C86.
+    [2026-04-10 07:48:44.273] [DEBUG] Active zone changed: 'left-half' -> 'right-half' at cursor (1415, 105).
+    [2026-04-10 07:48:44.273] [DEBUG] Overlay active zone changed: 'left-half' -> 'right-half'.
+    [2026-04-10 07:48:44.943] [DEBUG] Window move ended event for window 0x20C44.
+    [2026-04-10 07:48:44.943] [DEBUG] Final cursor position at drag end: (2182, 146).
+    [2026-04-10 07:48:44.944] [DEBUG] CommitSnap requested while in state 'DragActive'.
+    [2026-04-10 07:48:44.944] [DEBUG] CommitSnap resolved zone 'right-half' to bounds (1376, 0, 2064, 1440).
+    [2026-04-10 07:48:44.945] [INFO] Snapping to zone 'right-half'.
+    [2026-04-10 07:48:44.945] [DEBUG] Resetting snap engine state to Idle.
+    [2026-04-10 07:48:44.945] [DEBUG] Applying snap for window 0x20C44 to bounds (1376, 0, 2064, 1440).
+    [2026-04-10 07:48:44.945] [DEBUG] Applying snap to window 0x20C44 with target bounds (1376, 0, 2064, 1440).
+    [2026-04-10 07:48:44.945] [INFO] DWM frame compensation: insets L=5 T=0 R=5 B=5
+    [2026-04-10 07:48:44.945] [DEBUG] Using final window bounds (1371, 0, 2074, 1445) after DWM compensation.
+    [2026-04-10 07:48:44.953] [DEBUG] Activation modifier key pressed (VK=0xA0); activating snapping.
+    [2026-04-10 07:48:44.954] [DEBUG] Activating snapping for window 0x20C44 at cursor (2182, 146) on monitor 'primary'.
+    [2026-04-10 07:48:44.955] [DEBUG] BeginDrag requested for window 0x20C44 while in state 'Idle'.
+    [2026-04-10 07:48:44.955] [DEBUG] Resolved 3 zones for monitor 'primary' in working area (0, 0, 3440, 1440).
+    [2026-04-10 07:48:44.955] [INFO] Drag started for window 0x20C44.
+    [2026-04-10 07:48:44.956] [DEBUG] Activation cursor at (2182, 146) selected initial zone 'right-half'.
+    [2026-04-10 07:48:44.956] [DEBUG] Starting overlay render cycle with 3 zones; initial active zone 'right-half'.
+    [2026-04-10 07:48:44.956] [DEBUG] Starting overlay rendering for 3 zones in bounds (0, 0, 3440, 1440) with active zone 'right-half'.
+    [2026-04-10 07:48:45.036] [DEBUG] Overlay handle registered with window filter: 0x390C86.
+    [2026-04-10 07:48:45.037] [INFO] Snapped window 0x20C44 to zone (1376, 0, 2064, 1440)
+    [2026-04-10 07:48:45.038] [DEBUG] Stopping overlay render cycle after drag end.
+    [2026-04-10 07:48:45.038] [DEBUG] Stopping overlay rendering.
+    [2026-04-10 07:48:45.041] [DEBUG] Stopping drag tracking for window 0x20C44; keyboard hook uninstalled and cursor timer stopped.
+    [2026-04-10 07:48:45.685] [DEBUG] Window move started event for window 0x20C44.
+    [2026-04-10 07:48:45.692] [DEBUG] Started drag tracking for window 0x20C44; keyboard hook installed and cursor timer started.
+    [2026-04-10 07:48:45.692] [DEBUG] Activation modifier already held at drag start; activating snapping immediately.
+    [2026-04-10 07:48:45.693] [DEBUG] ActivateSnapping ignored because snap engine is already active.
+    [2026-04-10 07:48:45.829] [DEBUG] Active zone changed: 'right-half' -> 'left-half' at cursor (1371, 113).
+    [2026-04-10 07:48:45.829] [DEBUG] Overlay active zone changed: 'right-half' -> 'left-half'.
+    [2026-04-10 07:48:46.309] [DEBUG] Window move ended event for window 0x20C44.
+    [2026-04-10 07:48:46.309] [DEBUG] Final cursor position at drag end: (627, 106).
+    [2026-04-10 07:48:46.310] [DEBUG] CommitSnap requested while in state 'DragActive'.
+    [2026-04-10 07:48:46.310] [DEBUG] CommitSnap resolved zone 'left-half' to bounds (0, 0, 1376, 1440).
+    [2026-04-10 07:48:46.310] [INFO] Snapping to zone 'left-half'.
+    [2026-04-10 07:48:46.310] [DEBUG] Resetting snap engine state to Idle.
+    [2026-04-10 07:48:46.310] [DEBUG] Applying snap for window 0x20C44 to bounds (0, 0, 1376, 1440).
+    [2026-04-10 07:48:46.311] [DEBUG] Applying snap to window 0x20C44 with target bounds (0, 0, 1376, 1440).
+    [2026-04-10 07:48:46.311] [INFO] DWM frame compensation: insets L=5 T=0 R=5 B=5
+    [2026-04-10 07:48:46.311] [DEBUG] Using final window bounds (-5, 0, 1386, 1445) after DWM compensation.
+    [2026-04-10 07:48:46.333] [DEBUG] Activation modifier key pressed (VK=0xA0); activating snapping.
+    [2026-04-10 07:48:46.333] [DEBUG] Activating snapping for window 0x20C44 at cursor (627, 106) on monitor 'primary'.
+    [2026-04-10 07:48:46.333] [DEBUG] BeginDrag requested for window 0x20C44 while in state 'Idle'.
+    [2026-04-10 07:48:46.333] [DEBUG] Resolved 3 zones for monitor 'primary' in working area (0, 0, 3440, 1440).
+    [2026-04-10 07:48:46.334] [INFO] Drag started for window 0x20C44.
+    [2026-04-10 07:48:46.334] [DEBUG] Activation cursor at (627, 106) selected initial zone 'left-half'.
+    [2026-04-10 07:48:46.334] [DEBUG] Starting overlay render cycle with 3 zones; initial active zone 'left-half'.
+    [2026-04-10 07:48:46.334] [DEBUG] Starting overlay rendering for 3 zones in bounds (0, 0, 3440, 1440) with active zone 'left-half'.
+    [2026-04-10 07:48:46.411] [DEBUG] Overlay handle registered with window filter: 0x390C86.
+    [2026-04-10 07:48:46.412] [INFO] Snapped window 0x20C44 to zone (0, 0, 1376, 1440)
+    [2026-04-10 07:48:46.412] [DEBUG] Stopping overlay render cycle after drag end.
+    [2026-04-10 07:48:46.412] [DEBUG] Stopping overlay rendering.
+    [2026-04-10 07:48:46.415] [DEBUG] Stopping drag tracking for window 0x20C44; keyboard hook uninstalled and cursor timer stopped.
+    </log>
+  ```
 - created a nice architecture, including tests
 - did not create single executable by itself, and created no scrips to run the publish
 - it created an app that crashed on launch

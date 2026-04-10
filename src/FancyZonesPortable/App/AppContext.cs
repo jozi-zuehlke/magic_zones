@@ -285,8 +285,7 @@ internal class AppContext : ApplicationContext
     {
         if (_engine.State == SnapState.DragActive)
         {
-            _logger.Debug("ActivateSnapping ignored because snap engine is already active.");
-            return;
+            _logger.Debug("ActivateSnapping requested while snap engine is active; restarting snap session.");
         }
 
         var workingArea = _screenInfo.GetPrimaryWorkingArea();

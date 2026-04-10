@@ -79,6 +79,13 @@ public class SnapEngine
     /// <param name="cursorY">Current cursor Y position in pixels.</param>
     public void BeginDrag(nint windowHandle, MonitorConfig monitor, Rectangle workingArea, int cursorX, int cursorY)
     {
+        if (_state == SnapState.DragActive)
+        {
+            _logger.Warning(
+                "BeginDrag with activation cursor requested while DragActive; restarting drag session.");
+            Reset();
+        }
+
         BeginDrag(windowHandle, monitor, workingArea);
 
         if (_state == SnapState.DragActive)

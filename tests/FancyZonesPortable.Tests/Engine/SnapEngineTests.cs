@@ -381,4 +381,24 @@ public class SnapEngineTests
         Assert.NotNull(result);
         Assert.Equal(new Rectangle(960, 0, 960, 1080), result.Value);
     }
+
+    [Fact]
+    public void BeginDrag_WithInitialCursor_WhileAlreadyActive_ReinitializesDragSession()
+    {
+        var engine = CreateEngine();
+        var firstWindow = (nint)0xBEEF;
+        var secondWindow = (nint)0xCAFE;
+
+        engine.BeginDrag(firstWindow, CreateTwoZoneMonitor(), WorkingArea, cursorX: 400, cursorY: 500);
+        Assert.Equal(SnapState.DragActive, engine.State);
+        Assert.Equal(firstWindow, engine.DraggedWindow);
+        Assert.Equal("left", engine.ActiveZone!.Definition.Id);
+
+        // Simulate a reactivation request while a stale active session is still present.
+        engine.BeginDrag(secondWindow, CreateTwoZoneMonitor(), WorkingArea, cursorX: 1200, cursorY: 500);
+
+        Assert.Equal(SnapState.DragActive, engine.State);
+        Assert.Equal(secondWindow, engine.DraggedWindow);
+        Assert.Equal("right", engine.ActiveZone!.Definition.Id);
+    }
 }
