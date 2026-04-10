@@ -18,10 +18,19 @@ public class SnapApplier
 
     public void Apply(nint hwnd, Rectangle zoneBounds)
     {
+        _logger.Debug(
+            $"Applying snap to window 0x{hwnd:X} with target bounds " +
+            $"({zoneBounds.X}, {zoneBounds.Y}, {zoneBounds.Width}, {zoneBounds.Height}).");
+
         if (_windowManager.IsZoomed(hwnd))
+        {
+            _logger.Debug($"Window 0x{hwnd:X} is maximized; restoring before snap.");
             _windowManager.ShowWindow(hwnd, SW_RESTORE);
+        }
 
         var compensated = ComputeDwmCompensatedBounds(hwnd, zoneBounds);
+        _logger.Debug(
+            $"Using final window bounds ({compensated.X}, {compensated.Y}, {compensated.Width}, {compensated.Height}) after DWM compensation.");
 
         _windowManager.SetWindowPos(hwnd, compensated.X, compensated.Y, compensated.Width, compensated.Height);
 
@@ -36,7 +45,10 @@ public class SnapApplier
     {
         var extBounds = _windowManager.GetExtendedFrameBounds(hwnd);
         if (extBounds is null)
+        {
+            _logger.Debug($"No extended frame bounds available for window 0x{hwnd:X}; skipping DWM compensation.");
             return zoneBounds;
+        }
 
         var windowRect = _windowManager.GetWindowRect(hwnd);
         var ext = extBounds.Value;
@@ -47,7 +59,10 @@ public class SnapApplier
         int bottomInset = (windowRect.Y + windowRect.Height) - (ext.Y + ext.Height);
 
         if (leftInset == 0 && topInset == 0 && rightInset == 0 && bottomInset == 0)
+        {
+            _logger.Debug($"Window 0x{hwnd:X} has zero DWM frame insets; no compensation required.");
             return zoneBounds;
+        }
 
         _logger.Info($"DWM frame compensation: insets L={leftInset} T={topInset} R={rightInset} B={bottomInset}");
 

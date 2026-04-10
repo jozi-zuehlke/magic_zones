@@ -86,7 +86,7 @@ internal class AppContext : ApplicationContext
 
         // 11-12. Create SnapApplier, OverlayRenderer
         _snapApplier = new SnapApplier(windowManager, _logger);
-        _overlayRenderer = new OverlayRenderer();
+        _overlayRenderer = new OverlayRenderer(_logger);
 
         // Apply overlay colors from config
         ApplyOverlayColors();
@@ -108,6 +108,9 @@ internal class AppContext : ApplicationContext
 
         // 15. Parse activation modifier
         _activationModifierVk = SettingsParser.ParseModifierKey(_config.Settings.ActivationModifier) ?? 0x10;
+        _logger.Debug(
+            $"Activation modifier configured as '{_config.Settings.ActivationModifier}' " +
+            $"(VK=0x{_activationModifierVk:X}).");
 
         // 16-17. Register hotkey
         _hotkeyManager = new HotkeyManager();
@@ -160,6 +163,7 @@ internal class AppContext : ApplicationContext
         }
 
         _logger.SetMinimumLevel(configuredLevel.Value);
+        _logger.Debug($"Configured log level applied: {configuredLevel.Value}.");
     }
 
     private void RegisterHotkey()
@@ -243,35 +247,59 @@ internal class AppContext : ApplicationContext
 
     private void OnWindowMoveStarted(object? sender, WinEventArgs e)
     {
+        _logger.Debug($"Window move started event for window 0x{e.WindowHandle:X}.");
+
         if (!_enabled)
+        {
+            _logger.Debug("Ignoring move start because snapping is disabled.");
             return;
+        }
 
         if (!_windowFilter.ShouldSnap(e.WindowHandle))
+        {
+            _logger.Debug($"Ignoring move start for filtered window 0x{e.WindowHandle:X}.");
             return;
+        }
 
         // Enter tracking state for every eligible drag
         _trackingDrag = true;
         _trackedWindowHandle = e.WindowHandle;
         _keyboardHook.Install();
         _cursorTimer.Start();
+        _logger.Debug(
+            $"Started drag tracking for window 0x{_trackedWindowHandle:X}; keyboard hook installed and cursor timer started.");
 
         // If modifier is already held, activate immediately
         if (_nativeInput.IsKeyPressed(_activationModifierVk))
+        {
+            _logger.Debug("Activation modifier already held at drag start; activating snapping immediately.");
             ActivateSnapping();
+        }
+        else
+        {
+            _logger.Debug("Waiting for activation modifier key press during drag.");
+        }
     }
 
     private void ActivateSnapping()
     {
         if (_engine.State == SnapState.DragActive)
+        {
+            _logger.Debug("ActivateSnapping ignored because snap engine is already active.");
             return;
+        }
 
         var workingArea = _screenInfo.GetPrimaryWorkingArea();
         var primaryMonitor = GetPrimaryMonitor(_config);
         var (cursorX, cursorY) = _nativeInput.GetCursorPos();
+        _logger.Debug(
+            $"Activating snapping for window 0x{_trackedWindowHandle:X} at cursor ({cursorX}, {cursorY}) on monitor '{primaryMonitor.Id}'.");
 
         _engine.BeginDrag(_trackedWindowHandle, primaryMonitor, workingArea, cursorX, cursorY);
 
         var resolveResult = _converter.Resolve(primaryMonitor, workingArea);
+        _logger.Debug(
+            $"Starting overlay render cycle with {resolveResult.Zones.Count} zones; initial active zone '{_engine.ActiveZone?.Definition.Id ?? "<none>"}'.");
         _overlayRenderer.Show(
             BuildRenderInfos(resolveResult.Zones),
             workingArea,
@@ -279,7 +307,10 @@ internal class AppContext : ApplicationContext
 
         // Pass overlay HWND to filter after first show (form handle is created on Show)
         if (_overlayRenderer.Handle != 0)
+        {
             _windowFilter.SetOverlayHandle(_overlayRenderer.Handle);
+            _logger.Debug($"Overlay handle registered with window filter: 0x{_overlayRenderer.Handle:X}.");
+        }
     }
 
     private void OnCursorTimerTick(object? sender, EventArgs e)
@@ -294,6 +325,7 @@ internal class AppContext : ApplicationContext
             // Active state: if modifier released, deactivate back to tracking
             if (!modifierHeld)
             {
+                _logger.Debug("Activation modifier is no longer held during drag; cancelling active snap session.");
                 CancelDrag();
                 return;
             }
@@ -306,6 +338,7 @@ internal class AppContext : ApplicationContext
         else if (modifierHeld)
         {
             // Tracking state: modifier just pressed → activate
+            _logger.Debug("Activation modifier detected during tracked drag; activating snapping.");
             ActivateSnapping();
         }
     }
@@ -314,6 +347,7 @@ internal class AppContext : ApplicationContext
     {
         if (e.VirtualKeyCode == VK_ESCAPE)
         {
+            _logger.Debug("Escape key pressed; cancelling active snap session.");
             CancelDrag();
             return;
         }
@@ -323,6 +357,7 @@ internal class AppContext : ApplicationContext
             && _engine.State != SnapState.DragActive
             && ModifierKeyMapper.IsModifierMatch(e.VirtualKeyCode, _activationModifierVk))
         {
+            _logger.Debug($"Activation modifier key pressed (VK=0x{e.VirtualKeyCode:X}); activating snapping.");
             ActivateSnapping();
         }
     }
@@ -333,25 +368,43 @@ internal class AppContext : ApplicationContext
         if (_engine.State == SnapState.DragActive
             && ModifierKeyMapper.IsModifierMatch(e.VirtualKeyCode, _activationModifierVk))
         {
+            _logger.Debug($"Activation modifier key released (VK=0x{e.VirtualKeyCode:X}); cancelling active snap session.");
             CancelDrag();
         }
     }
 
     private void OnWindowMoveEnded(object? sender, WinEventArgs e)
     {
+        _logger.Debug($"Window move ended event for window 0x{e.WindowHandle:X}.");
+
         if (_engine.State == SnapState.DragActive)
         {
             var (cursorX, cursorY) = _nativeInput.GetCursorPos();
             _engine.UpdateCursorPosition(cursorX, cursorY);
+            _logger.Debug($"Final cursor position at drag end: ({cursorX}, {cursorY}).");
 
             // Capture before CommitSnap resets engine state
             var draggedWindow = _engine.DraggedWindow;
             var result = _engine.CommitSnap();
 
             if (result != null)
+            {
+                _logger.Debug(
+                    $"Applying snap for window 0x{draggedWindow:X} to bounds " +
+                    $"({result.Value.X}, {result.Value.Y}, {result.Value.Width}, {result.Value.Height}).");
                 _snapApplier.Apply(draggedWindow, result.Value);
+            }
+            else
+            {
+                _logger.Debug($"No snap target selected for window 0x{draggedWindow:X}; window remains in dropped position.");
+            }
 
+            _logger.Debug("Stopping overlay render cycle after drag end.");
             _overlayRenderer.Hide();
+        }
+        else
+        {
+            _logger.Debug("Move ended while snap engine was not active; no snap commit performed.");
         }
 
         StopTracking();
@@ -364,7 +417,9 @@ internal class AppContext : ApplicationContext
     /// </summary>
     private void CancelDrag()
     {
+        _logger.Debug("CancelDrag invoked for current snap session.");
         _engine.CancelDrag();
+        _logger.Debug("Stopping overlay render cycle due to drag cancellation.");
         _overlayRenderer.Hide();
     }
 
@@ -373,6 +428,16 @@ internal class AppContext : ApplicationContext
     /// </summary>
     private void StopTracking()
     {
+        if (!_trackingDrag)
+        {
+            _logger.Debug("StopTracking called with no active drag tracking session.");
+        }
+        else
+        {
+            _logger.Debug(
+                $"Stopping drag tracking for window 0x{_trackedWindowHandle:X}; keyboard hook uninstalled and cursor timer stopped.");
+        }
+
         _cursorTimer.Stop();
         _keyboardHook.Uninstall();
         _trackingDrag = false;
@@ -425,6 +490,7 @@ internal class AppContext : ApplicationContext
 
     private void OnHotkeyPressed(object? sender, EventArgs e)
     {
+        _logger.Debug("Global toggle hotkey pressed.");
         OnToggleEnabled();
     }
 
@@ -479,6 +545,7 @@ internal class AppContext : ApplicationContext
     {
         if (disposing)
         {
+            _logger.Debug("Disposing AppContext resources.");
             _cursorTimer.Stop();
             _cursorTimer.Dispose();
             _configWatcher?.Dispose();

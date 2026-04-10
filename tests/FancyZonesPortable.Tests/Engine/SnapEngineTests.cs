@@ -30,6 +30,13 @@ public class SnapEngineTests
     private static SnapEngine CreateEngine() =>
         new(new ZoneHitTester(), new CoordinateConverter(), Substitute.For<ILogger>());
 
+    private static (SnapEngine Engine, ILogger Logger) CreateEngineWithLogger()
+    {
+        var logger = Substitute.For<ILogger>();
+        var engine = new SnapEngine(new ZoneHitTester(), new CoordinateConverter(), logger);
+        return (engine, logger);
+    }
+
     private static SnapEngine CreateEngineWithDrag()
     {
         var engine = CreateEngine();
@@ -120,6 +127,19 @@ public class SnapEngineTests
         Assert.Equal("right", engine.ActiveZone!.Definition.Id);
     }
 
+    [Fact]
+    public void UpdateCursorPosition_WhenActiveZoneChanges_LogsDebugTransition()
+    {
+        var (engine, logger) = CreateEngineWithLogger();
+        engine.BeginDrag(TestWindowHandle, CreateTwoZoneMonitor(), WorkingArea);
+
+        engine.UpdateCursorPosition(400, 500);
+        engine.UpdateCursorPosition(1200, 500);
+
+        logger.Received().Debug(Arg.Is<string>(message =>
+            message.Contains("Active zone changed", StringComparison.Ordinal)));
+    }
+
     // --- CommitSnap tests ---
 
     [Fact]
@@ -150,6 +170,19 @@ public class SnapEngineTests
         // No UpdateCursorPosition, so no active zone
         var result = engine.CommitSnap();
         Assert.Null(result);
+    }
+
+    [Fact]
+    public void CommitSnap_WithNoActiveZone_LogsDebugNoSnap()
+    {
+        var (engine, logger) = CreateEngineWithLogger();
+        engine.BeginDrag(TestWindowHandle, CreateTwoZoneMonitor(), WorkingArea);
+
+        var result = engine.CommitSnap();
+
+        Assert.Null(result);
+        logger.Received().Debug(Arg.Is<string>(message =>
+            message.Contains("no active zone", StringComparison.OrdinalIgnoreCase)));
     }
 
     [Fact]

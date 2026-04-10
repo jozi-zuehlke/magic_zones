@@ -49,6 +49,8 @@ public class SnapEngine
     /// <param name="workingArea">The monitor's working area in pixels.</param>
     public void BeginDrag(nint windowHandle, MonitorConfig monitor, Rectangle workingArea)
     {
+        _logger.Debug($"BeginDrag requested for window 0x{windowHandle:X} while in state '{_state}'.");
+
         if (_state != SnapState.Idle)
         {
             _logger.Warning("BeginDrag called while not in Idle state.");
@@ -59,6 +61,9 @@ public class SnapEngine
         _resolvedZones = _converter.Resolve(monitor, workingArea).Zones;
         _activeZone = null;
         _state = SnapState.DragActive;
+        _logger.Debug(
+            $"Resolved {_resolvedZones.Count} zones for monitor '{monitor.Id}' in working area " +
+            $"({workingArea.X}, {workingArea.Y}, {workingArea.Width}, {workingArea.Height}).");
         _logger.Info($"Drag started for window 0x{windowHandle:X}.");
     }
 
@@ -79,6 +84,8 @@ public class SnapEngine
         if (_state == SnapState.DragActive)
         {
             _activeZone = _hitTester.HitTest(_resolvedZones, cursorX, cursorY);
+            _logger.Debug(
+                $"Activation cursor at ({cursorX}, {cursorY}) selected initial zone '{GetZoneId(_activeZone)}'.");
         }
     }
 
@@ -94,7 +101,15 @@ public class SnapEngine
             return;
         }
 
+        var previousZoneId = GetZoneId(_activeZone);
         _activeZone = _hitTester.HitTest(_resolvedZones, cursorX, cursorY);
+        var currentZoneId = GetZoneId(_activeZone);
+
+        if (!string.Equals(previousZoneId, currentZoneId, StringComparison.Ordinal))
+        {
+            _logger.Debug(
+                $"Active zone changed: '{previousZoneId}' -> '{currentZoneId}' at cursor ({cursorX}, {cursorY}).");
+        }
     }
 
     /// <summary>
@@ -104,6 +119,8 @@ public class SnapEngine
     /// <returns>The zone bounds to snap to, or null if no zone is active.</returns>
     public Rectangle? CommitSnap()
     {
+        _logger.Debug($"CommitSnap requested while in state '{_state}'.");
+
         if (_state != SnapState.DragActive)
         {
             _logger.Warning("CommitSnap called while not in DragActive state.");
@@ -114,7 +131,14 @@ public class SnapEngine
         if (_activeZone is not null)
         {
             result = _activeZone.Bounds;
+            _logger.Debug(
+                $"CommitSnap resolved zone '{_activeZone.Definition.Id}' to bounds " +
+                $"({_activeZone.Bounds.X}, {_activeZone.Bounds.Y}, {_activeZone.Bounds.Width}, {_activeZone.Bounds.Height}).");
             _logger.Info($"Snapping to zone '{_activeZone.Definition.Id}'.");
+        }
+        else
+        {
+            _logger.Debug("CommitSnap found no active zone; no snap will be applied.");
         }
 
         Reset();
@@ -128,20 +152,25 @@ public class SnapEngine
     {
         if (_state != SnapState.DragActive)
         {
+            _logger.Debug($"CancelDrag ignored while in state '{_state}'.");
             return;
         }
 
+        _logger.Debug("CancelDrag requested for active drag session.");
         _logger.Info("Drag cancelled.");
         Reset();
     }
 
     private void Reset()
     {
+        _logger.Debug("Resetting snap engine state to Idle.");
         _state = SnapState.Idle;
         _draggedWindow = 0;
         _resolvedZones = [];
         _activeZone = null;
     }
+
+    private static string GetZoneId(ResolvedZone? zone) => zone?.Definition.Id ?? "<none>";
 }
 
 /// <summary>
