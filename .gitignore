@@ -3,5 +3,6 @@
 /.copilot
 /.env
 /.envrc
+/.worktrees
 bin
 obj
