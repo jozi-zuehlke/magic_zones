@@ -28,6 +28,7 @@ public class ConfigSerializationTests
             "highlightInactiveZoneColor": "#888888",
             "highlightInactiveZoneOpacity": 0.2,
             "toggleHotkey": "Ctrl+Win+Z",
+            "logLevel": "DEBUG",
             "autoReloadConfig": true,
             "autoReloadDebounceMs": 500
           },
@@ -59,6 +60,7 @@ public class ConfigSerializationTests
         Assert.Equal("#888888", config.Settings.HighlightInactiveZoneColor);
         Assert.Equal(0.2, config.Settings.HighlightInactiveZoneOpacity);
         Assert.Equal("Ctrl+Win+Z", config.Settings.ToggleHotkey);
+        Assert.Equal("DEBUG", config.Settings.LogLevel);
         Assert.True(config.Settings.AutoReloadConfig);
         Assert.Equal(500, config.Settings.AutoReloadDebounceMs);
 
@@ -104,6 +106,7 @@ public class ConfigSerializationTests
         Assert.Equal("#888888", config.Settings.HighlightInactiveZoneColor);
         Assert.Equal(0.2, config.Settings.HighlightInactiveZoneOpacity);
         Assert.Equal("Ctrl+Win+Z", config.Settings.ToggleHotkey);
+        Assert.Equal("INFO", config.Settings.LogLevel);
         Assert.True(config.Settings.AutoReloadConfig);
         Assert.Equal(500, config.Settings.AutoReloadDebounceMs);
         Assert.Empty(config.Monitors);
@@ -124,6 +127,7 @@ public class ConfigSerializationTests
         Assert.Equal(config.Settings.HighlightInactiveZoneColor, roundTripped.Settings.HighlightInactiveZoneColor);
         Assert.Equal(config.Settings.HighlightInactiveZoneOpacity, roundTripped.Settings.HighlightInactiveZoneOpacity);
         Assert.Equal(config.Settings.ToggleHotkey, roundTripped.Settings.ToggleHotkey);
+        Assert.Equal(config.Settings.LogLevel, roundTripped.Settings.LogLevel);
         Assert.Equal(config.Settings.AutoReloadConfig, roundTripped.Settings.AutoReloadConfig);
         Assert.Equal(config.Settings.AutoReloadDebounceMs, roundTripped.Settings.AutoReloadDebounceMs);
     }
@@ -222,6 +226,7 @@ public class ConfigSerializationTests
         Assert.Equal("#888888", config.Settings.HighlightInactiveZoneColor);
         Assert.Equal(0.2, config.Settings.HighlightInactiveZoneOpacity);
         Assert.Equal("Ctrl+Win+Z", config.Settings.ToggleHotkey);
+        Assert.Equal("INFO", config.Settings.LogLevel);
         Assert.True(config.Settings.AutoReloadConfig);
         Assert.Equal(500, config.Settings.AutoReloadDebounceMs);
     }

@@ -63,6 +63,7 @@ public class ConfigLoader
                 return new LoadResult(defaultConfig, path, false, errors);
             }
 
+            _logger.SetMinimumLevel(SettingsParser.ParseLogLevel(config.Settings.LogLevel) ?? LogLevel.Info);
             _logger.Info($"Config loaded from '{path}'.");
             var validationErrors = _validator.Validate(config);
             return new LoadResult(config, path, false, validationErrors);

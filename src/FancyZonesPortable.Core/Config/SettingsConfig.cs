@@ -46,6 +46,12 @@ public class SettingsConfig
     public string ToggleHotkey { get; set; } = "Ctrl+Win+Z";
 
     /// <summary>
+    /// Minimum severity written to logs. Values: "DEBUG", "INFO", "WARN", "ERROR".
+    /// </summary>
+    [JsonPropertyName("logLevel")]
+    public string LogLevel { get; set; } = "INFO";
+
+    /// <summary>
     /// Watch zones.json for changes and reload automatically.
     /// </summary>
     [JsonPropertyName("autoReloadConfig")]

@@ -252,6 +252,28 @@ public class ConfigValidatorTests
     }
 
     [Fact]
+    public void Validate_InvalidLogLevel_ReturnsError()
+    {
+        var config = TestHelpers.CreateValidConfig();
+        config.Settings.LogLevel = "TRACE";
+        var errors = _validator.Validate(config);
+        Assert.Contains(errors, e => e.Contains("logLevel"));
+    }
+
+    [Theory]
+    [InlineData("debug")]
+    [InlineData("INFO")]
+    [InlineData("warn")]
+    [InlineData("ERROR")]
+    public void Validate_LogLevel_CaseInsensitive(string logLevel)
+    {
+        var config = TestHelpers.CreateValidConfig();
+        config.Settings.LogLevel = logLevel;
+        var errors = _validator.Validate(config);
+        Assert.DoesNotContain(errors, e => e.Contains("logLevel"));
+    }
+
+    [Fact]
     public void Validate_MultipleErrors_ReturnsAll()
     {
         var config = TestHelpers.CreateValidConfig();

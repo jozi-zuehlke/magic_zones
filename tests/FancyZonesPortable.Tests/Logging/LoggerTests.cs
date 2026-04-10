@@ -47,6 +47,30 @@ public class LoggerTests : IDisposable
     }
 
     [Fact]
+    public void Debug_WritesToLogFile_WhenMinimumLevelIsDebug()
+    {
+        var logger = new Logger(logDirectory: _tempDir, minimumLevel: LogLevel.Debug);
+
+        logger.Debug("dbg");
+
+        var content = ReadSingleLogFile();
+        Assert.Contains("[DEBUG] dbg", content);
+    }
+
+    [Fact]
+    public void Debug_DoesNotWrite_WhenMinimumLevelIsInfo()
+    {
+        var logger = new Logger(logDirectory: _tempDir);
+
+        logger.Debug("dbg");
+        logger.Info("info");
+
+        var content = ReadSingleLogFile();
+        Assert.DoesNotContain("[DEBUG] dbg", content);
+        Assert.Contains("[INFO] info", content);
+    }
+
+    [Fact]
     public void Warning_WritesToLogFile()
     {
         var logger = new Logger(logDirectory: _tempDir);
@@ -107,6 +131,22 @@ public class LoggerTests : IDisposable
         var content = ReadSingleLogFile();
         Assert.Contains("[INFO] first", content);
         Assert.Contains("[INFO] second", content);
+    }
+
+    [Fact]
+    public void SetMinimumLevel_FiltersLowerSeverityEntries()
+    {
+        var logger = new Logger(logDirectory: _tempDir, minimumLevel: LogLevel.Debug);
+
+        logger.Info("before");
+        logger.SetMinimumLevel(LogLevel.Error);
+        logger.Warning("skip");
+        logger.Error("keep");
+
+        var content = ReadSingleLogFile();
+        Assert.Contains("[INFO] before", content);
+        Assert.DoesNotContain("[WARN] skip", content);
+        Assert.Contains("[ERROR] keep", content);
     }
 
     [Fact]

@@ -57,6 +57,7 @@ internal class AppContext : ApplicationContext
         var loadResult = _configLoader.Load();
         _config = loadResult.Config;
         _configPath = loadResult.FilePath ?? string.Empty;
+        ApplyConfiguredLogLevel();
 
         // 6. Create TrayManager early so we can show balloons
         _trayManager = new TrayManager();
@@ -146,6 +147,19 @@ internal class AppContext : ApplicationContext
         return config.Monitors.FirstOrDefault(m =>
             string.Equals(m.MatchBy, "primary", StringComparison.OrdinalIgnoreCase))
             ?? config.Monitors.First();
+    }
+
+    private void ApplyConfiguredLogLevel()
+    {
+        var configuredLevel = SettingsParser.ParseLogLevel(_config.Settings.LogLevel);
+        if (configuredLevel is null)
+        {
+            _logger.SetMinimumLevel(LogLevel.Info);
+            _logger.Warning($"Invalid logLevel '{_config.Settings.LogLevel}'. Falling back to INFO.");
+            return;
+        }
+
+        _logger.SetMinimumLevel(configuredLevel.Value);
     }
 
     private void RegisterHotkey()
@@ -428,6 +442,7 @@ internal class AppContext : ApplicationContext
         _config = loadResult.Config;
         if (loadResult.FilePath != null)
             _configPath = loadResult.FilePath;
+        ApplyConfiguredLogLevel();
 
         _activationModifierVk = SettingsParser.ParseModifierKey(_config.Settings.ActivationModifier) ?? 0x10;
 

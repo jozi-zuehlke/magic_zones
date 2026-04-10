@@ -188,4 +188,23 @@ public class SettingsParserTests
     {
         Assert.Null(SettingsParser.ParseModifierKey("Tab"));
     }
+
+    // ── ParseLogLevel ────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData("DEBUG")]
+    [InlineData("INFO")]
+    [InlineData("WARN")]
+    [InlineData("ERROR")]
+    [InlineData("warning")]
+    public void ParseLogLevel_ValidValues_ReturnsValue(string value)
+    {
+        Assert.NotNull(SettingsParser.ParseLogLevel(value));
+    }
+
+    [Fact]
+    public void ParseLogLevel_InvalidValue_ReturnsNull()
+    {
+        Assert.Null(SettingsParser.ParseLogLevel("TRACE"));
+    }
 }

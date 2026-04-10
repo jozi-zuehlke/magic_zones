@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Threading;
 
 namespace FancyZonesPortable.Core.Logging;
 
@@ -12,12 +13,17 @@ public class Logger : ILogger
     private readonly string _logDirectory;
     private readonly Func<DateTime> _clock;
     private readonly object _lock = new();
+    private int _minimumLevel;
 
-    public Logger(string? logDirectory = null, Func<DateTime>? clock = null)
+    public Logger(
+        string? logDirectory = null,
+        Func<DateTime>? clock = null,
+        LogLevel minimumLevel = LogLevel.Info)
     {
         _clock = clock ?? (() => DateTime.UtcNow);
         _logDirectory = logDirectory
             ?? Path.Combine(Path.GetTempPath(), "FancyZonesPortable");
+        _minimumLevel = (int)minimumLevel;
 
         if (!Directory.Exists(_logDirectory))
         {
@@ -27,20 +33,32 @@ public class Logger : ILogger
         CleanupOldLogs();
     }
 
-    public void Info(string message) => Write("INFO", message);
+    public void Debug(string message) => Write(LogLevel.Debug, "DEBUG", message);
 
-    public void Warning(string message) => Write("WARN", message);
+    public void Info(string message) => Write(LogLevel.Info, "INFO", message);
 
-    public void Error(string message) => Write("ERROR", message);
+    public void Warning(string message) => Write(LogLevel.Warning, "WARN", message);
+
+    public void Error(string message) => Write(LogLevel.Error, "ERROR", message);
 
     public void Error(string message, Exception exception) =>
-        Write("ERROR", $"{message} | {exception}");
+        Write(LogLevel.Error, "ERROR", $"{message} | {exception}");
 
-    private void Write(string level, string message)
+    public void SetMinimumLevel(LogLevel level)
     {
+        Volatile.Write(ref _minimumLevel, (int)level);
+    }
+
+    private void Write(LogLevel level, string label, string message)
+    {
+        if ((int)level < Volatile.Read(ref _minimumLevel))
+        {
+            return;
+        }
+
         var now = _clock();
         var timestamp = now.ToString("yyyy-MM-dd HH:mm:ss.fff");
-        var logLine = $"[{timestamp}] [{level}] {message}";
+        var logLine = $"[{timestamp}] [{label}] {message}";
         var logFile = Path.Combine(_logDirectory, $"fzp-{now:yyyy-MM-dd}.log");
 
         lock (_lock)

@@ -38,6 +38,11 @@ public class ConfigValidator
             errors.Add("toggleHotkey must not be empty.");
         }
 
+        if (SettingsParser.ParseLogLevel(settings.LogLevel) is null)
+        {
+            errors.Add($"Invalid logLevel '{settings.LogLevel}'. Must be one of: DEBUG, INFO, WARN, ERROR.");
+        }
+
         ValidateOpacity(settings.HighlightActiveZoneOpacity, "highlightActiveZoneOpacity", errors);
         ValidateOpacity(settings.HighlightInactiveZoneOpacity, "highlightInactiveZoneOpacity", errors);
 

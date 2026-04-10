@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using FancyZonesPortable.Core.Logging;
 
 namespace FancyZonesPortable.Core.Config;
 
@@ -31,6 +32,15 @@ public static class SettingsParser
         ["shift"] = 0x10,
         ["ctrl"] = 0x11,
         ["alt"] = 0x12,
+    };
+
+    private static readonly Dictionary<string, LogLevel> LogLevelMap = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["debug"] = LogLevel.Debug,
+        ["info"] = LogLevel.Info,
+        ["warn"] = LogLevel.Warning,
+        ["warning"] = LogLevel.Warning,
+        ["error"] = LogLevel.Error,
     };
 
     /// <summary>
@@ -110,6 +120,22 @@ public static class SettingsParser
 
         if (VirtualKeyModifierMap.TryGetValue(modifier, out int vk))
             return vk;
+
+        return null;
+    }
+
+    /// <summary>
+    /// Parses log level strings ("DEBUG", "INFO", "WARN", "ERROR")
+    /// into a <see cref="LogLevel"/> value.
+    /// Returns null for empty or invalid input.
+    /// </summary>
+    public static LogLevel? ParseLogLevel(string logLevel)
+    {
+        if (string.IsNullOrWhiteSpace(logLevel))
+            return null;
+
+        if (LogLevelMap.TryGetValue(logLevel.Trim(), out var parsed))
+            return parsed;
 
         return null;
     }

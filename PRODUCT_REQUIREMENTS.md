@@ -172,6 +172,7 @@ No free, portable, zero-installation window zone manager exists for Windows that
 | `highlightInactiveZoneColor` | string | `"#888888"` | Hex color for inactive zone borders. |
 | `highlightInactiveZoneOpacity` | number | `0.2` | Inactive zone indicator opacity. |
 | `toggleHotkey` | string | `"Ctrl+Win+Z"` | Global enable/disable hotkey. Format: modifiers joined by `+`, then key name. |
+| `logLevel` | string | `"INFO"` | Minimum log severity written to file. Values: `"DEBUG"`, `"INFO"`, `"WARN"`, `"ERROR"`. |
 | `autoReloadConfig` | boolean | `true` | Watch `zones.json` for changes and reload automatically. |
 | `autoReloadDebounceMs` | integer | `500` | Milliseconds to debounce file-change events before reloading. |
 
@@ -210,6 +211,7 @@ No free, portable, zero-installation window zone manager exists for Windows that
     "highlightInactiveZoneColor": "#888888",
     "highlightInactiveZoneOpacity": 0.2,
     "toggleHotkey": "Ctrl+Win+Z",
+    "logLevel": "INFO",
     "autoReloadConfig": true,
     "autoReloadDebounceMs": 500
   },
