@@ -2,6 +2,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Drawing.Text;
 using FancyZonesPortable.Core.Abstractions;
+using FancyZonesPortable.Core.Engine;
 using FancyZonesPortable.Interop;
 
 namespace FancyZonesPortable.App;
@@ -19,15 +20,22 @@ internal class ZoneOverlay : Form
     private Color _inactiveZoneColor = Color.FromArgb(64, 0, 120, 215);
     private Color _borderColor = Color.FromArgb(200, 0, 120, 215);
 
+    private readonly DeferredActionGate _renderGate;
     private IReadOnlyList<ZoneRenderInfo> _zones = Array.Empty<ZoneRenderInfo>();
     private string? _activeZoneId;
 
     public ZoneOverlay()
     {
+        _renderGate = new DeferredActionGate(UpdateOverlayBitmap);
         FormBorderStyle = FormBorderStyle.None;
         ShowInTaskbar = false;
         TopMost = true;
         StartPosition = FormStartPosition.Manual;
+    }
+
+    public IDisposable DeferRender()
+    {
+        return _renderGate.Defer();
     }
 
     protected override CreateParams CreateParams
@@ -74,7 +82,7 @@ internal class ZoneOverlay : Form
             0, 0, 0, 0,
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 
-        UpdateOverlayBitmap();
+        _renderGate.Request();
     }
 
     /// <summary>
@@ -95,13 +103,16 @@ internal class ZoneOverlay : Form
     public void SetZones(IReadOnlyList<ZoneRenderInfo> zones)
     {
         _zones = zones;
-        UpdateOverlayBitmap();
+        _renderGate.Request();
     }
 
     public void SetActiveZone(string? zoneId)
     {
+        if (string.Equals(_activeZoneId, zoneId, StringComparison.Ordinal))
+            return;
+
         _activeZoneId = zoneId;
-        UpdateOverlayBitmap();
+        _renderGate.Request();
     }
 
     /// <summary>
@@ -121,6 +132,8 @@ internal class ZoneOverlay : Form
             g.Clear(Color.FromArgb(0, 0, 0, 0));
 
             using var borderPen = new Pen(_borderColor, BorderWidth);
+            using var labelFont = new Font("Segoe UI", 12f, FontStyle.Bold, GraphicsUnit.Point);
+            using var textBrush = new SolidBrush(Color.FromArgb(180, 255, 255, 255));
 
             foreach (var zone in _zones)
             {
@@ -137,12 +150,10 @@ internal class ZoneOverlay : Form
                 // Draw zone name label centered in the rectangle
                 if (!string.IsNullOrEmpty(zone.Name))
                 {
-                    using var font = new Font("Segoe UI", 12f, FontStyle.Bold, GraphicsUnit.Point);
-                    using var textBrush = new SolidBrush(Color.FromArgb(180, 255, 255, 255));
-                    var textSize = g.MeasureString(zone.Name, font);
+                    var textSize = g.MeasureString(zone.Name, labelFont);
                     float textX = rect.X + (rect.Width - textSize.Width) / 2f;
                     float textY = rect.Y + (rect.Height - textSize.Height) / 2f;
-                    g.DrawString(zone.Name, font, textBrush, textX, textY);
+                    g.DrawString(zone.Name, labelFont, textBrush, textX, textY);
                 }
             }
         }

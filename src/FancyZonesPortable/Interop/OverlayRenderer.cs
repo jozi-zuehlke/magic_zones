@@ -41,21 +41,25 @@ internal class OverlayRenderer : IOverlayRenderer
         _logger?.Debug(
             $"Starting overlay rendering for {zones.Count} zones in bounds " +
             $"({workingArea.X}, {workingArea.Y}, {workingArea.Width}, {workingArea.Height}) with active zone '{activeZoneId ?? "<none>"}'.");
-        _overlay!.SetOverlayBounds(workingArea.X, workingArea.Y, workingArea.Width, workingArea.Height);
-        _overlay.SetZones(zones);
-        _overlay.SetActiveZone(activeZoneId);
-        _overlay.ShowTopMost();
+        using (_overlay!.DeferRender())
+        {
+            _overlay.SetOverlayBounds(workingArea.X, workingArea.Y, workingArea.Width, workingArea.Height);
+            _overlay.SetZones(zones);
+            _overlay.SetActiveZone(activeZoneId);
+            _overlay.ShowTopMost();
+        }
+
         _activeZoneId = activeZoneId;
         _isVisible = true;
     }
 
     public void SetActiveZone(string? zoneId)
     {
-        if (!string.Equals(_activeZoneId, zoneId, StringComparison.Ordinal))
-        {
-            _logger?.Debug($"Overlay active zone changed: '{_activeZoneId ?? "<none>"}' -> '{zoneId ?? "<none>"}'.");
-            _activeZoneId = zoneId;
-        }
+        if (string.Equals(_activeZoneId, zoneId, StringComparison.Ordinal))
+            return;
+
+        _logger?.Debug($"Overlay active zone changed: '{_activeZoneId ?? "<none>"}' -> '{zoneId ?? "<none>"}'.");
+        _activeZoneId = zoneId;
 
         _overlay?.SetActiveZone(zoneId);
     }
