@@ -43,6 +43,7 @@ internal class AppContext : ApplicationContext
     // Tracking state: we monitor the drag even before the modifier is pressed
     private bool _trackingDrag;
     private nint _trackedWindowHandle;
+    private readonly ModifierKeyStateTracker _activationModifierState = new();
 
     public AppContext()
     {
@@ -269,8 +270,11 @@ internal class AppContext : ApplicationContext
         _logger.Debug(
             $"Started drag tracking for window 0x{_trackedWindowHandle:X}; keyboard hook installed and cursor timer started.");
 
+        bool modifierHeldAtDragStart = _nativeInput.IsKeyPressed(_activationModifierVk);
+        _activationModifierState.Sync(modifierHeldAtDragStart);
+
         // If modifier is already held, activate immediately
-        if (_nativeInput.IsKeyPressed(_activationModifierVk))
+        if (modifierHeldAtDragStart)
         {
             _logger.Debug("Activation modifier already held at drag start; activating snapping immediately.");
             ActivateSnapping();
@@ -318,6 +322,10 @@ internal class AppContext : ApplicationContext
             return;
 
         bool modifierHeld = _nativeInput.IsKeyPressed(_activationModifierVk);
+        if (!modifierHeld)
+        {
+            _activationModifierState.TryRelease();
+        }
 
         if (_engine.State == SnapState.DragActive)
         {
@@ -334,7 +342,7 @@ internal class AppContext : ApplicationContext
             _engine.UpdateCursorPosition(cursorX, cursorY);
             _overlayRenderer.SetActiveZone(_engine.ActiveZone?.Definition.Id);
         }
-        else if (modifierHeld)
+        else if (modifierHeld && _activationModifierState.TryPress())
         {
             // Tracking state: modifier just pressed → activate
             _logger.Debug("Activation modifier detected during tracked drag; activating snapping.");
@@ -354,7 +362,8 @@ internal class AppContext : ApplicationContext
         // Instant modifier activation via keyboard hook (no polling delay)
         if (_trackingDrag
             && _engine.State != SnapState.DragActive
-            && ModifierKeyMapper.IsModifierMatch(e.VirtualKeyCode, _activationModifierVk))
+            && ModifierKeyMapper.IsModifierMatch(e.VirtualKeyCode, _activationModifierVk)
+            && _activationModifierState.TryPress())
         {
             _logger.Debug($"Activation modifier key pressed (VK=0x{e.VirtualKeyCode:X}); activating snapping.");
             ActivateSnapping();
@@ -363,6 +372,11 @@ internal class AppContext : ApplicationContext
 
     private void OnKeyReleased(object? sender, KeyboardHookEventArgs e)
     {
+        if (ModifierKeyMapper.IsModifierMatch(e.VirtualKeyCode, _activationModifierVk))
+        {
+            _activationModifierState.TryRelease();
+        }
+
         // Instant modifier deactivation via keyboard hook
         if (_engine.State == SnapState.DragActive
             && ModifierKeyMapper.IsModifierMatch(e.VirtualKeyCode, _activationModifierVk))
@@ -375,6 +389,7 @@ internal class AppContext : ApplicationContext
     private void OnWindowMoveEnded(object? sender, WinEventArgs e)
     {
         _logger.Debug($"Window move ended event for window 0x{e.WindowHandle:X}.");
+        StopTracking();
 
         if (_engine.State == SnapState.DragActive)
         {
@@ -405,8 +420,6 @@ internal class AppContext : ApplicationContext
         {
             _logger.Debug("Move ended while snap engine was not active; no snap commit performed.");
         }
-
-        StopTracking();
     }
 
     /// <summary>
@@ -441,6 +454,7 @@ internal class AppContext : ApplicationContext
         _keyboardHook.Uninstall();
         _trackingDrag = false;
         _trackedWindowHandle = 0;
+        _activationModifierState.Reset();
     }
 
     // ── Tray menu handlers ────────────────────────────────────────

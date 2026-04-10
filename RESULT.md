@@ -248,6 +248,93 @@
     [2026-04-10 07:48:46.415] [DEBUG] Stopping drag tracking for window 0x20C44; keyboard hook uninstalled and cursor timer stopped.
     </log>
   ```
+
+  ```txt
+  the app is fully working, but there is a minor issue I noticed. let me give you the sequence of events that reveals the bug:
+  
+  1. I position a window into any of the zones for the first time (this works flawlessly)
+  2. I either activate the shortcut and start dragging a window or I drag a window and activate the shortcut (i.e. order does not matter) over a different zone than the one I placed the first window in
+  3. the overlay gets activated (correct), but for a split second the zone from the previous positioning is activated / highlighted instead of the zone over which the new window and mouse are hovering; after this short moment, the correct zone gets highlighted, and dropping the window positions it correctly; so in general the mechanism is working, but this behavior causes a short screen flash that is rather annoying
+  
+  I assume we have some bug that causes the target zone from the previous operation to linger. you can find the relevant log excerpt below. please investigate this bug and fix it using red-green TDD.
+
+    <log>
+    [2026-04-10 08:21:49.678] [DEBUG] Window move started event for window 0x40C32.
+    [2026-04-10 08:21:49.685] [DEBUG] Started drag tracking for window 0x40C32; keyboard hook installed and cursor timer started.
+    [2026-04-10 08:21:49.686] [DEBUG] Waiting for activation modifier key press during drag.
+    [2026-04-10 08:21:49.689] [DEBUG] Activation modifier is no longer held during drag; cancelling active snap session.
+    [2026-04-10 08:21:49.690] [DEBUG] CancelDrag invoked for current snap session.
+    [2026-04-10 08:21:49.690] [DEBUG] CancelDrag requested for active drag session.
+    [2026-04-10 08:21:49.690] [INFO] Drag cancelled.
+    [2026-04-10 08:21:49.691] [DEBUG] Resetting snap engine state to Idle.
+    [2026-04-10 08:21:49.691] [DEBUG] Stopping overlay render cycle due to drag cancellation.
+    [2026-04-10 08:21:50.730] [DEBUG] Activation modifier key pressed (VK=0xA0); activating snapping.
+    [2026-04-10 08:21:50.731] [DEBUG] Activating snapping for window 0x40C32 at cursor (2431, 564) on monitor 'primary'.
+    [2026-04-10 08:21:50.732] [DEBUG] BeginDrag requested for window 0x40C32 while in state 'Idle'.
+    [2026-04-10 08:21:50.732] [DEBUG] Resolved 3 zones for monitor 'primary' in working area (0, 0, 3440, 1440).
+    [2026-04-10 08:21:50.733] [INFO] Drag started for window 0x40C32.
+    [2026-04-10 08:21:50.733] [DEBUG] Activation cursor at (2431, 564) selected initial zone 'sharing'.
+    [2026-04-10 08:21:50.734] [DEBUG] Starting overlay render cycle with 3 zones; initial active zone 'sharing'.
+    [2026-04-10 08:21:50.734] [DEBUG] Starting overlay rendering for 3 zones in bounds (0, 0, 3440, 1440) with active zone 'sharing'.
+    [2026-04-10 08:21:50.802] [DEBUG] Overlay handle registered with window filter: 0x40F4C.
+    [2026-04-10 08:21:51.168] [DEBUG] Window move ended event for window 0x40C32.
+    [2026-04-10 08:21:51.168] [DEBUG] Final cursor position at drag end: (2431, 564).
+    [2026-04-10 08:21:51.169] [DEBUG] CommitSnap requested while in state 'DragActive'.
+    [2026-04-10 08:21:51.169] [DEBUG] CommitSnap resolved zone 'sharing' to bounds (1444, 251, 1926, 1080).
+    [2026-04-10 08:21:51.169] [INFO] Snapping to zone 'sharing'.
+    [2026-04-10 08:21:51.169] [DEBUG] Resetting snap engine state to Idle.
+    [2026-04-10 08:21:51.170] [DEBUG] Applying snap for window 0x40C32 to bounds (1444, 251, 1926, 1080).
+    [2026-04-10 08:21:51.171] [DEBUG] Applying snap to window 0x40C32 with target bounds (1444, 251, 1926, 1080).
+    [2026-04-10 08:21:51.171] [INFO] DWM frame compensation: insets L=5 T=0 R=5 B=5
+    [2026-04-10 08:21:51.171] [DEBUG] Using final window bounds (1439, 251, 1936, 1085) after DWM compensation.
+    [2026-04-10 08:21:51.212] [INFO] Snapped window 0x40C32 to zone (1444, 251, 1926, 1080)
+    [2026-04-10 08:21:51.213] [DEBUG] Stopping overlay render cycle after drag end.
+    [2026-04-10 08:21:51.213] [DEBUG] Stopping overlay rendering.
+    [2026-04-10 08:21:51.214] [DEBUG] Stopping drag tracking for window 0x40C32; keyboard hook uninstalled and cursor timer stopped.
+    [2026-04-10 08:21:52.349] [DEBUG] Window move started event for window 0x40C32.
+    [2026-04-10 08:21:52.355] [DEBUG] Started drag tracking for window 0x40C32; keyboard hook installed and cursor timer started.
+    [2026-04-10 08:21:52.356] [DEBUG] Waiting for activation modifier key press during drag.
+    [2026-04-10 08:21:53.334] [DEBUG] Activation modifier key pressed (VK=0xA0); activating snapping.
+    [2026-04-10 08:21:53.335] [DEBUG] Activating snapping for window 0x40C32 at cursor (833, 277) on monitor 'primary'.
+    [2026-04-10 08:21:53.335] [DEBUG] BeginDrag requested for window 0x40C32 while in state 'Idle'.
+    [2026-04-10 08:21:53.335] [DEBUG] Resolved 3 zones for monitor 'primary' in working area (0, 0, 3440, 1440).
+    [2026-04-10 08:21:53.336] [INFO] Drag started for window 0x40C32.
+    [2026-04-10 08:21:53.336] [DEBUG] Activation cursor at (833, 277) selected initial zone 'left-half'.
+    [2026-04-10 08:21:53.337] [DEBUG] Starting overlay render cycle with 3 zones; initial active zone 'left-half'.
+    [2026-04-10 08:21:53.337] [DEBUG] Starting overlay rendering for 3 zones in bounds (0, 0, 3440, 1440) with active zone 'left-half'.
+    [2026-04-10 08:21:53.404] [DEBUG] Overlay handle registered with window filter: 0x40F4C.
+    [2026-04-10 08:21:53.849] [DEBUG] Window move ended event for window 0x40C32.
+    [2026-04-10 08:21:53.850] [DEBUG] Final cursor position at drag end: (833, 277).
+    [2026-04-10 08:21:53.851] [DEBUG] CommitSnap requested while in state 'DragActive'.
+    [2026-04-10 08:21:53.852] [DEBUG] CommitSnap resolved zone 'left-half' to bounds (0, 0, 1376, 1440).
+    [2026-04-10 08:21:53.852] [INFO] Snapping to zone 'left-half'.
+    [2026-04-10 08:21:53.852] [DEBUG] Resetting snap engine state to Idle.
+    [2026-04-10 08:21:53.852] [DEBUG] Applying snap for window 0x40C32 to bounds (0, 0, 1376, 1440).
+    [2026-04-10 08:21:53.853] [DEBUG] Applying snap to window 0x40C32 with target bounds (0, 0, 1376, 1440).
+    [2026-04-10 08:21:53.853] [INFO] DWM frame compensation: insets L=5 T=0 R=5 B=5
+    [2026-04-10 08:21:53.854] [DEBUG] Using final window bounds (-5, 0, 1386, 1445) after DWM compensation.
+    [2026-04-10 08:21:53.855] [DEBUG] Activation modifier key pressed (VK=0xA0); activating snapping.
+    [2026-04-10 08:21:53.856] [DEBUG] Activating snapping for window 0x40C32 at cursor (833, 277) on monitor 'primary'.
+    [2026-04-10 08:21:53.856] [DEBUG] BeginDrag requested for window 0x40C32 while in state 'Idle'.
+    [2026-04-10 08:21:53.857] [DEBUG] Resolved 3 zones for monitor 'primary' in working area (0, 0, 3440, 1440).
+    [2026-04-10 08:21:53.858] [INFO] Drag started for window 0x40C32.
+    [2026-04-10 08:21:53.858] [DEBUG] Activation cursor at (833, 277) selected initial zone 'left-half'.
+    [2026-04-10 08:21:53.859] [DEBUG] Starting overlay render cycle with 3 zones; initial active zone 'left-half'.
+    [2026-04-10 08:21:53.859] [DEBUG] Starting overlay rendering for 3 zones in bounds (0, 0, 3440, 1440) with active zone 'left-half'.
+    [2026-04-10 08:21:53.952] [DEBUG] Overlay handle registered with window filter: 0x40F4C.
+    [2026-04-10 08:21:53.988] [DEBUG] Activation modifier key released (VK=0xA0); cancelling active snap session.
+    [2026-04-10 08:21:53.988] [DEBUG] CancelDrag invoked for current snap session.
+    [2026-04-10 08:21:53.988] [DEBUG] CancelDrag requested for active drag session.
+    [2026-04-10 08:21:53.988] [INFO] Drag cancelled.
+    [2026-04-10 08:21:53.988] [DEBUG] Resetting snap engine state to Idle.
+    [2026-04-10 08:21:53.989] [DEBUG] Stopping overlay render cycle due to drag cancellation.
+    [2026-04-10 08:21:53.989] [DEBUG] Stopping overlay rendering.
+    [2026-04-10 08:21:54.003] [INFO] Snapped window 0x40C32 to zone (0, 0, 1376, 1440)
+    [2026-04-10 08:21:54.003] [DEBUG] Stopping overlay render cycle after drag end.
+    [2026-04-10 08:21:54.004] [DEBUG] Stopping drag tracking for window 0x40C32; keyboard hook uninstalled and cursor timer stopped.
+    </log>
+  ```
+
 - created a nice architecture, including tests
 - did not create single executable by itself, and created no scrips to run the publish
 - it created an app that crashed on launch

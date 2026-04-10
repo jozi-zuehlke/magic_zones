@@ -38,6 +38,7 @@ internal class OverlayRenderer : IOverlayRenderer
     public void Show(IReadOnlyList<ZoneRenderInfo> zones, CoreRectangle workingArea, string? activeZoneId)
     {
         EnsureOverlay();
+        _ = _overlay!.Handle;
         _logger?.Debug(
             $"Starting overlay rendering for {zones.Count} zones in bounds " +
             $"({workingArea.X}, {workingArea.Y}, {workingArea.Width}, {workingArea.Height}) with active zone '{activeZoneId ?? "<none>"}'.");
@@ -46,8 +47,8 @@ internal class OverlayRenderer : IOverlayRenderer
             _overlay.SetOverlayBounds(workingArea.X, workingArea.Y, workingArea.Width, workingArea.Height);
             _overlay.SetZones(zones);
             _overlay.SetActiveZone(activeZoneId);
-            _overlay.ShowTopMost();
         }
+        _overlay.ShowTopMost();
 
         _activeZoneId = activeZoneId;
         _isVisible = true;

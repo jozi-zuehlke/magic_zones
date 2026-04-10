@@ -81,8 +81,6 @@ internal class ZoneOverlay : Form
             HWND_TOPMOST,
             0, 0, 0, 0,
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-
-        _renderGate.Request();
     }
 
     /// <summary>
