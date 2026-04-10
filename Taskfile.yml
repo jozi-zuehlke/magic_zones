@@ -1,0 +1,75 @@
+version: '3'
+
+vars:
+  CONFIGURATION: '{{default "Release" .CONFIGURATION}}'
+  RUNTIME: '{{default "win-x64" .RUNTIME}}'
+  IMAGE_REGISTRY: localhost
+  IMAGE_NAME: '{{default "fancy-zones" .IMAGE_NAME}}'
+  IMAGE_TAG: '{{default "latest" .IMAGE_TAG}}'
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list-all
+
+  restore:
+    desc: Restore NuGet packages
+    cmds:
+      - dotnet restore FancyZonesPortable.sln
+
+  build:
+    desc: Build the project
+    deps: [restore]
+    cmds:
+      - dotnet build FancyZonesPortable.sln -c {{.CONFIGURATION}} --no-restore
+
+  test:
+    desc: Run tests
+    deps: [restore]
+    cmds:
+      - dotnet test FancyZonesPortable.sln -c {{.CONFIGURATION}} --no-restore --logger "trx;LogFileName=test-results.trx"
+
+  publish:
+    desc: Publish self-contained single-file Windows executable
+    deps: [build]
+    cmds:
+      - rm -rf .publish
+      - mkdir -p .publish
+      - >
+        dotnet publish src/FancyZonesPortable/FancyZonesPortable.csproj
+        -c {{.CONFIGURATION}}
+        -r {{.RUNTIME}}
+        --self-contained true
+        -o .publish
+        -p:PublishSingleFile=true
+        -p:PublishTrimmed=false
+        -p:DebugType=None
+        --no-build
+
+  publish-with-image:
+    desc: Build container image with Podman
+    cmds:
+      - rm -rf .publish
+      - mkdir -p .publish
+      - |
+        podman build \
+          -f fancy_zones.Containerfile \
+          -t {{.IMAGE_REGISTRY}}/{{.IMAGE_NAME}}:{{.IMAGE_TAG}} \
+          --cap-drop ALL \
+          --cap-add CHOWN \
+          --cap-add DAC_OVERRIDE \
+          --cap-add FOWNER \
+          --cap-add FSETID \
+          --cap-add SETGID \
+          --cap-add SETUID \
+          .
+      - podman create --name fancy_zones {{.IMAGE_REGISTRY}}/{{.IMAGE_NAME}}:{{.IMAGE_TAG}}
+      - defer: podman rm fancy_zones
+      - podman cp fancy_zones:/fancy_zones/FancyZonesPortable.exe ./.publish/FancyZonesPortable.exe
+
+  clean:
+    desc: Clean build outputs and artifacts
+    cmds:
+      - dotnet clean FancyZonesPortable.sln
+      - rm -rf .publish

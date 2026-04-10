@@ -4,5 +4,6 @@
 /.env
 /.envrc
 /.worktrees
+/.publish
 bin
 obj
