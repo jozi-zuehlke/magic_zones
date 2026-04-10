@@ -16,6 +16,7 @@ tools:
   gitstatus: ((system))
   jq: ((system))
   ripgrep: ((system))
+  rust: ((system))
   task: ((system))
   zoxide: ((system))
   zsh: ((system))
