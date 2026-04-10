@@ -3,7 +3,7 @@
 - prompts:
 
   ```txt
-  please implement the product as specified in `/home/dev/src/fancy_zones/PRODUCT_REQUIREMENTS.md`.
+  please implement the product as specified in `/home/dev/src/magic_zones/PRODUCT_REQUIREMENTS.md`.
 
   I want you to act as an engineering manager. you do not perform any implementation work yourself, but instead of coordinate a fleet of sub-agents to perform the various phases of the implementation. you spawn the sub-agents
   sequentially and have each one work until it is done. then you spawn the next one, until the product is successfully implemented.
@@ -25,10 +25,10 @@
     [2026-04-09 18:22:58.971] [ERROR] Unhandled domain exception. | System.ArgumentNullException: Value cannot be null. (Parameter 'path1')
     at System.ArgumentNullException.Throw(String paramName)
     at System.IO.Path.Combine(String path1, String path2)
-    at FancyZonesPortable.Core.Config.ConfigLoader.DiscoverConfigPath()
-    at FancyZonesPortable.Core.Config.ConfigLoader.Load()
-    at FancyZonesPortable.App.AppContext..ctor()
-    at FancyZonesPortable.Program.Main()
+    at MagicZonesPortable.Core.Config.ConfigLoader.DiscoverConfigPath()
+    at MagicZonesPortable.Core.Config.ConfigLoader.Load()
+    at MagicZonesPortable.App.AppContext..ctor()
+    at MagicZonesPortable.Program.Main()
     </log>
   ```
 
@@ -36,8 +36,8 @@
   great, now the app is working, well done. however, I have a few improvement requests. please spawn a sub-agent for each of my requests to implement each one using red-green TDD. my requests are:
 
   - currently the overlay is not always on top. if I activate other windows after launching the app, and then activate the shortcut for moving a window, the blue overlay is getting rendered behind the other window, but it should always be on top
-  - currently, you have to hold shift first and then start dragging the window, but with the real FancyZones, you can start dragging a window and then hold the activation key, and it will immediately activate the positioning mode; and if you release the activation key without dropping the window, then the positioning mode is canceled. please change our logic so that it works the same way
-  - currently the overlay is not properly transparent, but fully opaque. I want the overlay to be transparent so that I can see other windows in the background when dragging a new one over them; this also matches the original FancyZones
+  - currently, you have to hold shift first and then start dragging the window, but with the real MagicZones, you can start dragging a window and then hold the activation key, and it will immediately activate the positioning mode; and if you release the activation key without dropping the window, then the positioning mode is canceled. please change our logic so that it works the same way
+  - currently the overlay is not properly transparent, but fully opaque. I want the overlay to be transparent so that I can see other windows in the background when dragging a new one over them; this also matches the original MagicZones
   - on my Windows 11 system, when dragging a window into a zone, there seems to be a 7px gap on the sides and at the bottom; only at the top is the window flush with the zone border; please make sure that windows are fully covering the zone 
 
   don't do them in parallel, do them sequentially. also, remember that you are the engineering

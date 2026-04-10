@@ -1,4 +1,4 @@
-# Product Requirements Document: FancyZones Portable
+# Product Requirements Document: MagicZones Portable
 
 **Version:** 1.0
 **Date:** 2026-04-09
@@ -60,7 +60,7 @@ No free, portable, zero-installation window zone manager exists for Windows that
 
 ### 5.1 Zone Configuration
 - **FR-01** Read zones from `zones.json` in the same directory as the executable.
-- **FR-02** Fallback to `%APPDATA%\FancyZonesPortable\zones.json` if not found beside the exe.
+- **FR-02** Fallback to `%APPDATA%\MagicZonesPortable\zones.json` if not found beside the exe.
 - **FR-03** Generate a default `zones.json` on first run if neither location has a config file.
 - **FR-04** Zone coordinates may be expressed as absolute pixels or as a fraction (0.0–1.0) of the monitor's working area. The unit is declared per monitor in the config.
 - **FR-05** Each zone has a unique `id`, a human-readable `name`, and an integer `priority`. Lower value = higher precedence.
@@ -138,7 +138,7 @@ No free, portable, zero-installation window zone manager exists for Windows that
 - **TR-11** The application declares Per-Monitor DPI Aware v2 in its application manifest.
 
 ### 6.3 Error Handling and Logging
-- **TR-12** Rolling log file written to `%TEMP%\FancyZonesPortable\fzp-{date}.log`. Captures startup info, config load results, hook status, snap events, and errors.
+- **TR-12** Rolling log file written to `%TEMP%\MagicZonesPortable\fzp-{date}.log`. Captures startup info, config load results, hook status, snap events, and errors.
 - **TR-13** Log files older than 7 days are deleted on startup.
 - **TR-14** Unhandled exceptions are caught by `Application.ThreadException` / `AppDomain.CurrentDomain.UnhandledException`, logged, and shown as tray balloons before exit.
 
@@ -356,8 +356,8 @@ The v1 MVP delivers exactly these features:
 ## Appendix A: Recommended Project Structure
 
 ```
-FancyZonesPortable/
-  FancyZonesPortable.csproj      # net8.0-windows, UseWindowsForms, PublishSingleFile
+MagicZonesPortable/
+  MagicZonesPortable.csproj      # net8.0-windows, UseWindowsForms, PublishSingleFile
   Program.cs                     # Entry point, Application.Run(new AppContext())
   App/
     AppContext.cs                 # ApplicationContext subclass; owns NotifyIcon, engine

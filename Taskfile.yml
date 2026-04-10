@@ -4,7 +4,7 @@ vars:
   CONFIGURATION: '{{default "Release" .CONFIGURATION}}'
   RUNTIME: '{{default "win-x64" .RUNTIME}}'
   IMAGE_REGISTRY: localhost
-  IMAGE_NAME: '{{default "fancy-zones" .IMAGE_NAME}}'
+  IMAGE_NAME: '{{default "magic-zones" .IMAGE_NAME}}'
   IMAGE_TAG: '{{default "latest" .IMAGE_TAG}}'
 
 tasks:
@@ -16,19 +16,19 @@ tasks:
   restore:
     desc: Restore NuGet packages
     cmds:
-      - dotnet restore FancyZonesPortable.sln
+      - dotnet restore MagicZonesPortable.sln
 
   build:
     desc: Build the project
     deps: [restore]
     cmds:
-      - dotnet build FancyZonesPortable.sln -c {{.CONFIGURATION}} --no-restore
+      - dotnet build MagicZonesPortable.sln -c {{.CONFIGURATION}} --no-restore
 
   test:
     desc: Run tests
     deps: [restore]
     cmds:
-      - dotnet test FancyZonesPortable.sln -c {{.CONFIGURATION}} --no-restore --logger "trx;LogFileName=test-results.trx"
+      - dotnet test MagicZonesPortable.sln -c {{.CONFIGURATION}} --no-restore --logger "trx;LogFileName=test-results.trx"
 
   publish:
     desc: Publish framework-dependent single-file Windows executable
@@ -37,7 +37,7 @@ tasks:
       - rm -rf .publish
       - mkdir -p .publish
       - >
-        dotnet publish src/FancyZonesPortable/FancyZonesPortable.csproj
+        dotnet publish src/MagicZonesPortable/MagicZonesPortable.csproj
         -c {{.CONFIGURATION}}
         -r {{.RUNTIME}}
         --self-contained false
@@ -55,7 +55,7 @@ tasks:
       - mkdir -p .publish
       - |
         podman build \
-          -f fancy_zones.Containerfile \
+          -f magic_zones.Containerfile \
           -t {{.IMAGE_REGISTRY}}/{{.IMAGE_NAME}}:{{.IMAGE_TAG}} \
           --cap-drop ALL \
           --cap-add CHOWN \
@@ -65,12 +65,12 @@ tasks:
           --cap-add SETGID \
           --cap-add SETUID \
           .
-      - podman create --name fancy_zones {{.IMAGE_REGISTRY}}/{{.IMAGE_NAME}}:{{.IMAGE_TAG}}
-      - defer: podman rm fancy_zones
-      - podman cp fancy_zones:/fancy_zones/FancyZonesPortable.exe ./.publish/FancyZonesPortable.exe
+      - podman create --name magic_zones {{.IMAGE_REGISTRY}}/{{.IMAGE_NAME}}:{{.IMAGE_TAG}}
+      - defer: podman rm magic_zones
+      - podman cp magic_zones:/magic_zones/MagicZonesPortable.exe ./.publish/MagicZonesPortable.exe
 
   clean:
     desc: Clean build outputs and artifacts
     cmds:
-      - dotnet clean FancyZonesPortable.sln
+      - dotnet clean MagicZonesPortable.sln
       - rm -rf .publish

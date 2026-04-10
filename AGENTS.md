@@ -1,4 +1,4 @@
-# FancyZones Portable
+# MagicZones Portable
 
 A portable Windows window zone manager for corporate users who lack admin rights.
 

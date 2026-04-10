@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <RootNamespace>MagicZonesPortable</RootNamespace>
+    <ApplicationManifest>Resources\app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MagicZonesPortable.Core\MagicZonesPortable.Core.csproj" />
+  </ItemGroup>
+
+</Project>
