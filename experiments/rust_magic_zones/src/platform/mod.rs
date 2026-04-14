@@ -23,6 +23,7 @@ pub struct MonitorInfo {
 }
 
 /// Trait abstracting window management Win32 APIs.
+#[allow(dead_code)]
 pub trait WindowManager: Send + Sync {
     /// Move and resize a window.
     fn set_window_pos(&self, hwnd: isize, x: i32, y: i32, width: i32, height: i32, flags: u32);
@@ -49,6 +50,7 @@ pub trait WindowManager: Send + Sync {
 }
 
 /// Trait for querying keyboard state.
+#[allow(dead_code)]
 pub trait KeyboardState: Send + Sync {
     /// Returns true if the virtual-key is currently held down.
     fn is_key_pressed(&self, vk: u16) -> bool;

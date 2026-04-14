@@ -21,6 +21,7 @@ pub enum WinEventMsg {
 
 /// Message sent when a keyboard event is detected.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum KeyboardMsg {
     /// A key was pressed (virtual-key code).
     KeyDown(u32),

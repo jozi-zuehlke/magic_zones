@@ -1,6 +1,6 @@
 /// Determines which zone (if any) the cursor is currently over.
 
-use crate::engine::types::{Rect, ResolvedZone};
+use crate::engine::types::ResolvedZone;
 
 /// Hit-tests a cursor position against a set of resolved zones.
 pub struct ZoneHitTester;

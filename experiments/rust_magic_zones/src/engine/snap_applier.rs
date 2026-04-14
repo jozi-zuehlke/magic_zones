@@ -20,6 +20,7 @@ impl SnapApplier {
     ///
     /// Compensates for extended frame bounds (invisible borders around modern
     /// Windows windows) so the visible area matches the zone exactly.
+    #[allow(dead_code)]
     pub fn apply(&self, hwnd: isize, zone: &ResolvedZone) {
         // Compute border compensation
         let border_offset = self.compute_border_offset(hwnd);

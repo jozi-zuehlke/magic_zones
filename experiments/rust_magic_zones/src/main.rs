@@ -189,7 +189,7 @@ fn create_message_window() -> Result<HWND, String> {
             0,
             0,
             0,
-            Some(parent),
+            parent,
             None,
             None,
             None,

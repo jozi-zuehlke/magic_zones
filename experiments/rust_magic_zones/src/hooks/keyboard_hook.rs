@@ -23,7 +23,7 @@ use crossbeam_channel::Sender;
 
 use crate::hooks::KeyboardMsg;
 
-use windows::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
+use windows::Win32::Foundation::{HINSTANCE, LPARAM, LRESULT, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, SetWindowsHookExW, UnhookWindowsHookEx, HHOOK, KBDLLHOOKSTRUCT,
@@ -60,7 +60,7 @@ impl KeyboardHook {
             let hmod = GetModuleHandleW(None)
                 .map_err(|e| format!("GetModuleHandleW failed: {e}"))?;
 
-            SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_proc), Some(hmod.into()), 0)
+            SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_proc), HINSTANCE::from(hmod), 0)
                 .map_err(|e| format!("SetWindowsHookExW failed: {e}"))?
         };
 

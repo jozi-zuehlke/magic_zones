@@ -11,8 +11,7 @@
 ///
 /// [`HotkeyManager`] is an RAII guard: dropping it calls `UnregisterHotKey`.
 
-use windows::Win32::Foundation::HWND;
-use windows::Win32::UI::WindowsAndMessaging::{
+use windows::Win32::UI::Input::KeyboardAndMouse::{
     RegisterHotKey, UnregisterHotKey, HOT_KEY_MODIFIERS,
 };
 
@@ -41,7 +40,7 @@ impl HotkeyManager {
         // SAFETY: HWND(0) registers a thread-level hotkey (no window handle needed).
         let result = unsafe {
             RegisterHotKey(
-                Some(HWND(std::ptr::null_mut())),
+                None,
                 HOTKEY_ID,
                 HOT_KEY_MODIFIERS(modifiers),
                 vk,
@@ -66,7 +65,7 @@ impl HotkeyManager {
 impl Drop for HotkeyManager {
     fn drop(&mut self) {
         // SAFETY: We registered with HWND(0) and the same hotkey_id.
-        let result = unsafe { UnregisterHotKey(Some(HWND(std::ptr::null_mut())), self.hotkey_id) };
+        let result = unsafe { UnregisterHotKey(None, self.hotkey_id) };
         if result.is_ok() {
             tracing::info!("Hotkey unregistered: id={}", self.hotkey_id);
         } else {

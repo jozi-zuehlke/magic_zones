@@ -30,16 +30,16 @@ use windows::core::PCWSTR;
 use windows::Win32::Foundation::{HWND, LPARAM, POINT, WPARAM};
 use windows::Win32::Graphics::Gdi::{
     CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, BITMAPINFO, BITMAPINFOHEADER,
-    BI_RGB, DIB_RGB_COLORS, HBITMAP,
+    BI_RGB, DIB_RGB_COLORS,
 };
 use windows::Win32::UI::Shell::{
     Shell_NotifyIconW, NIF_ICON, NIF_INFO, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NIM_MODIFY,
-    NOTIFYICONDATAW, NOTIFYICONDATAW_0,
+    NOTIFYICONDATAW,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     AppendMenuW, CreateIconIndirect, CreatePopupMenu, DestroyIcon, DestroyMenu,
     GetCursorPos, SetForegroundWindow, TrackPopupMenu, HICON, HMENU, ICONINFO,
-    MF_STRING, TPM_BOTTOMALIGN, TPM_LEFTALIGN, WM_APP, WM_COMMAND, WM_LBUTTONDBLCLK,
+    MF_STRING, TPM_BOTTOMALIGN, TPM_LEFTALIGN, WM_APP, WM_LBUTTONDBLCLK,
     WM_RBUTTONUP,
 };
 
@@ -53,6 +53,25 @@ const TRAY_ICON_UID: u32 = 1;
 const IDM_TOGGLE: u32 = 1001;
 const IDM_RELOAD: u32 = 1002;
 const IDM_EXIT: u32 = 1003;
+
+/// Helper macro to create a wide string literal at compile time.
+/// Used for menu item labels.
+macro_rules! w {
+    ($s:literal) => {{
+        const WIDE: &[u16] = &{
+            const BYTES: &[u8] = $s.as_bytes();
+            const LEN: usize = BYTES.len() + 1;
+            let mut buf = [0u16; LEN];
+            let mut i = 0;
+            while i < BYTES.len() {
+                buf[i] = BYTES[i] as u16;
+                i += 1;
+            }
+            buf
+        };
+        PCWSTR(WIDE.as_ptr())
+    }};
+}
 
 /// System tray icon and context menu manager.
 ///
@@ -136,7 +155,7 @@ impl TrayManager {
             let mut pt = POINT::default();
             let _ = GetCursorPos(&mut pt);
 
-            TrackPopupMenu(menu, TPM_LEFTALIGN | TPM_BOTTOMALIGN, pt.x, pt.y, 0, self.hwnd, None);
+            let _ = TrackPopupMenu(menu, TPM_LEFTALIGN | TPM_BOTTOMALIGN, pt.x, pt.y, 0, self.hwnd, None);
 
             let _ = DestroyMenu(menu);
         }
@@ -163,7 +182,7 @@ impl TrayManager {
 
         // SAFETY: nid is fully initialised with updated fields.
         unsafe {
-            Shell_NotifyIconW(NIM_MODIFY, &self.nid);
+            let _ = Shell_NotifyIconW(NIM_MODIFY, &self.nid);
         }
     }
 
@@ -186,7 +205,7 @@ impl TrayManager {
 
         // SAFETY: nid is a copy with updated fields.
         unsafe {
-            Shell_NotifyIconW(NIM_MODIFY, &nid);
+            let _ = Shell_NotifyIconW(NIM_MODIFY, &nid);
         }
     }
 
@@ -226,7 +245,7 @@ impl Drop for TrayManager {
         // Remove the tray icon.
         // SAFETY: nid identifies the icon to remove.
         unsafe {
-            Shell_NotifyIconW(NIM_DELETE, &self.nid);
+            let _ = Shell_NotifyIconW(NIM_DELETE, &self.nid);
             let _ = DestroyIcon(self.icon_enabled);
             let _ = DestroyIcon(self.icon_disabled);
         }
@@ -256,7 +275,7 @@ fn create_color_icon(r: u8, g: u8, b: u8) -> Result<HICON, String> {
 
     unsafe {
         let screen_dc = windows::Win32::Graphics::Gdi::GetDC(None);
-        let mem_dc = CreateCompatibleDC(Some(screen_dc));
+        let mem_dc = CreateCompatibleDC(screen_dc);
 
         let bmi = BITMAPINFO {
             bmiHeader: BITMAPINFOHEADER {
@@ -274,7 +293,7 @@ fn create_color_icon(r: u8, g: u8, b: u8) -> Result<HICON, String> {
         // Color bitmap.
         let mut color_bits: *mut std::ffi::c_void = ptr::null_mut();
         let color_bmp = CreateDIBSection(
-            Some(mem_dc),
+            mem_dc,
             &bmi,
             DIB_RGB_COLORS,
             &mut color_bits,
@@ -310,7 +329,7 @@ fn create_color_icon(r: u8, g: u8, b: u8) -> Result<HICON, String> {
             ..Default::default()
         };
         let mask_bmp = CreateDIBSection(
-            Some(mem_dc),
+            mem_dc,
             &mask_bmi,
             DIB_RGB_COLORS,
             &mut mask_bits,
@@ -347,23 +366,4 @@ fn create_color_icon(r: u8, g: u8, b: u8) -> Result<HICON, String> {
 
         Ok(icon)
     }
-}
-
-/// Helper macro to create a wide string literal at compile time.
-/// Used for menu item labels.
-macro_rules! w {
-    ($s:literal) => {{
-        const WIDE: &[u16] = &{
-            const BYTES: &[u8] = $s.as_bytes();
-            const LEN: usize = BYTES.len() + 1;
-            let mut buf = [0u16; LEN];
-            let mut i = 0;
-            while i < BYTES.len() {
-                buf[i] = BYTES[i] as u16;
-                i += 1;
-            }
-            buf
-        };
-        PCWSTR(WIDE.as_ptr())
-    }};
 }

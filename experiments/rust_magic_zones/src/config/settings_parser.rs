@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 /// Parses human-readable setting strings (hotkeys, colors, modifier names) into
 /// structured representations used by the engine.
 

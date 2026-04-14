@@ -37,7 +37,6 @@ pub struct App {
     window_filter: WindowFilter,
     modifier_tracker: ModifierKeyStateTracker,
     window_manager: Arc<dyn WindowManager>,
-    keyboard_state: Arc<dyn KeyboardState>,
     enabled: bool,
     tracking_drag: bool,
     snapping_active: bool,
@@ -64,7 +63,7 @@ impl App {
         let modifier = parse_modifier(&config.settings.activation_modifier);
         let modifier_tracker = ModifierKeyStateTracker::new(keyboard_state.clone(), modifier);
         let window_filter = WindowFilter::new(window_manager.clone());
-        let mut engine = SnapEngine::new(window_manager.clone(), monitor_provider);
+        let mut engine = SnapEngine::new(monitor_provider);
         engine.resolve_zones(&config);
 
         Self {
@@ -74,7 +73,6 @@ impl App {
             window_filter,
             modifier_tracker,
             window_manager,
-            keyboard_state,
             enabled: true,
             tracking_drag: false,
             snapping_active: false,
@@ -192,6 +190,7 @@ impl App {
     }
 
     /// Check whether snapping is currently enabled.
+    #[allow(dead_code)]
     pub fn is_enabled(&self) -> bool {
         self.enabled
     }
@@ -202,6 +201,7 @@ impl App {
     }
 
     /// Check whether the snap overlay is active.
+    #[allow(dead_code)]
     pub fn is_snapping(&self) -> bool {
         self.snapping_active
     }

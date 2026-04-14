@@ -28,19 +28,18 @@ use crate::engine::types::ZoneRenderInfo;
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM};
 use windows::Win32::Graphics::Gdi::{
-    BeginPaint, BitBlt, CreateCompatibleDC, CreateDIBSection, CreateFontW, CreatePen,
-    CreateSolidBrush, DeleteDC, DeleteObject, DrawTextW, EndPaint, FillRect, GetDC,
-    Rectangle, ReleaseDC, SelectObject, SetBkMode, SetTextColor, UpdateLayeredWindow,
-    AC_SRC_ALPHA, AC_SRC_OVER, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, BLENDFUNCTION,
-    DIB_RGB_COLORS, DT_CENTER, DT_NOPREFIX, DT_SINGLELINE, DT_VCENTER, HBITMAP, HBRUSH,
-    HGDIOBJ, PAINTSTRUCT, PS_SOLID, SRCCOPY, TRANSPARENT,
+    CreateCompatibleDC, CreateDIBSection, CreateFontW, DeleteDC, DeleteObject, DrawTextW, GetDC,
+    ReleaseDC, SelectObject, SetBkMode, SetTextColor, AC_SRC_ALPHA, AC_SRC_OVER, BITMAPINFO,
+    BITMAPINFOHEADER, BI_RGB, BLENDFUNCTION, DIB_RGB_COLORS, DT_CENTER, DT_NOPREFIX,
+    DT_SINGLELINE, DT_VCENTER, HBITMAP, TRANSPARENT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, GetSystemMetrics, RegisterClassExW,
-    SetWindowPos, ShowWindow, CS_HREDRAW, CS_VREDRAW, HWND_TOPMOST, SM_CXVIRTUALSCREEN,
-    SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, SWP_NOACTIVATE, SWP_NOMOVE,
-    SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, WINDOW_EX_STYLE, WNDCLASSEXW, WS_EX_LAYERED,
-    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
+    SetWindowPos, ShowWindow, UpdateLayeredWindow, CS_HREDRAW, CS_VREDRAW, HWND_TOPMOST,
+    SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN,
+    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, ULW_ALPHA,
+    WNDCLASSEXW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
+    WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
 };
 
 /// Name of the window class registered for the overlay.
@@ -53,7 +52,6 @@ const DEFAULT_ACTIVE_COLOR: u32 = 0x60_20_A0_40; // ARGB
 /// Default border colour (white, opaque).
 const DEFAULT_BORDER_COLOR: u32 = 0xFF_FF_FF_FF;
 
-/// ARGB colour helper — extracts premultiplied components.
 fn argb_to_pma(argb: u32) -> (u8, u8, u8, u8) {
     let a = ((argb >> 24) & 0xFF) as u8;
     let r = ((argb >> 16) & 0xFF) as u8;
@@ -62,14 +60,6 @@ fn argb_to_pma(argb: u32) -> (u8, u8, u8, u8) {
     // Premultiply
     let pma = |c: u8| -> u8 { ((c as u16 * a as u16) / 255) as u8 };
     (pma(r), pma(g), pma(b), a)
-}
-
-/// Encode an ARGB colour as a COLORREF (0x00BBGGRR) for GDI functions.
-fn argb_to_colorref(argb: u32) -> u32 {
-    let r = (argb >> 16) & 0xFF;
-    let g = (argb >> 8) & 0xFF;
-    let b = argb & 0xFF;
-    b | (g << 8) | (r << 16)
 }
 
 /// A transparent overlay window that shows zone boundaries during a drag.
@@ -198,7 +188,7 @@ impl OverlayWindow {
             );
 
             let screen_dc = GetDC(None);
-            let mem_dc = CreateCompatibleDC(Some(screen_dc));
+            let mem_dc = CreateCompatibleDC(screen_dc);
 
             // Create a 32bpp top-down DIB for premultiplied-alpha rendering.
             let bmi = BITMAPINFO {
@@ -216,7 +206,7 @@ impl OverlayWindow {
 
             let mut bits_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
             let dib = CreateDIBSection(
-                Some(mem_dc),
+                mem_dc,
                 &bmi,
                 DIB_RGB_COLORS,
                 &mut bits_ptr,
@@ -227,8 +217,8 @@ impl OverlayWindow {
 
             if dib.is_invalid() || bits_ptr.is_null() {
                 tracing::error!("CreateDIBSection failed");
-                DeleteDC(mem_dc);
-                ReleaseDC(None, screen_dc);
+                let _ = DeleteDC(mem_dc);
+                let _ = ReleaseDC(None, screen_dc);
                 return;
             }
 
@@ -315,7 +305,7 @@ impl OverlayWindow {
                 0,        // CLIP_DEFAULT_PRECIS
                 4,        // CLEARTYPE_QUALITY
                 0,        // DEFAULT_PITCH
-                &PCWSTR(font_name.as_ptr()),
+                PCWSTR(font_name.as_ptr()),
             );
 
             let old_font = SelectObject(mem_dc, font);
@@ -340,12 +330,12 @@ impl OverlayWindow {
             }
 
             SelectObject(mem_dc, old_font);
-            DeleteObject(font);
+            let _ = DeleteObject(font);
 
             // Apply to layered window.
-            let mut pt_src = windows::Win32::Foundation::POINT { x: 0, y: 0 };
-            let mut pt_dst = windows::Win32::Foundation::POINT { x: vx, y: vy };
-            let mut size = windows::Win32::Foundation::SIZE {
+            let pt_src = windows::Win32::Foundation::POINT { x: 0, y: 0 };
+            let pt_dst = windows::Win32::Foundation::POINT { x: vx, y: vy };
+            let size = windows::Win32::Foundation::SIZE {
                 cx: vw,
                 cy: vh,
             };
@@ -358,21 +348,21 @@ impl OverlayWindow {
 
             let _ = UpdateLayeredWindow(
                 self.hwnd,
-                Some(screen_dc),
+                screen_dc,
                 Some(&pt_dst),
                 Some(&size),
-                Some(mem_dc),
+                mem_dc,
                 Some(&pt_src),
                 windows::Win32::Foundation::COLORREF(0),
                 Some(&blend),
-                windows::Win32::Graphics::Gdi::ULW_ALPHA,
+                ULW_ALPHA,
             );
 
             // Show window and ensure topmost.
             let _ = ShowWindow(self.hwnd, SW_SHOWNOACTIVATE);
             let _ = SetWindowPos(
                 self.hwnd,
-                Some(HWND_TOPMOST),
+                HWND_TOPMOST,
                 0,
                 0,
                 0,
@@ -423,12 +413,4 @@ extern "system" fn overlay_wnd_proc(
 /// Convert a Rust string slice to a null-terminated wide (UTF-16) string.
 fn to_wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
-}
-
-/// Convert a Rust string slice to a [`PCWSTR`]-compatible wide string.
-fn to_wide_pcwstr(s: &str) -> PCWSTR {
-    // SAFETY: the static/leaked wide string lives for the program's duration.
-    // This is acceptable for class names and font names registered once.
-    let wide: Vec<u16> = to_wide(s);
-    PCWSTR(Box::leak(wide.into_boxed_slice()).as_ptr())
 }

@@ -21,6 +21,7 @@ impl Rect {
     }
 
     /// Returns the centre point of this rectangle.
+    #[allow(dead_code)]
     pub fn center(&self) -> (i32, i32) {
         (self.x + self.width / 2, self.y + self.height / 2)
     }
@@ -45,6 +46,7 @@ pub enum SnapState {
 /// Lightweight zone info sent to the overlay for rendering.
 #[derive(Debug, Clone)]
 pub struct ZoneRenderInfo {
+    #[allow(dead_code)]
     pub zone_id: String,
     pub name: String,
     pub bounds: Rect,

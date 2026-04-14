@@ -5,11 +5,10 @@ use std::sync::Arc;
 use crate::config::models::ZonesConfig;
 use crate::engine::types::{ResolvedZone, SnapState, ZoneRenderInfo};
 use crate::engine::zone_hit_tester::ZoneHitTester;
-use crate::platform::{MonitorProvider, WindowManager};
+use crate::platform::MonitorProvider;
 
 /// The main snap engine that processes window events and determines snap targets.
 pub struct SnapEngine {
-    window_manager: Arc<dyn WindowManager>,
     monitor_provider: Arc<dyn MonitorProvider>,
     state: SnapState,
     resolved_zones: Vec<ResolvedZone>,
@@ -19,12 +18,8 @@ pub struct SnapEngine {
 
 impl SnapEngine {
     /// Create a new snap engine with the given platform abstractions.
-    pub fn new(
-        window_manager: Arc<dyn WindowManager>,
-        monitor_provider: Arc<dyn MonitorProvider>,
-    ) -> Self {
+    pub fn new(monitor_provider: Arc<dyn MonitorProvider>) -> Self {
         Self {
-            window_manager,
             monitor_provider,
             state: SnapState::Idle,
             resolved_zones: Vec::new(),
@@ -95,6 +90,7 @@ impl SnapEngine {
     }
 
     /// Notify the engine that the drag has ended. Returns the zone to snap to, if any.
+    #[allow(dead_code)]
     pub fn on_drag_end(&mut self) -> Option<ResolvedZone> {
         let result = self
             .active_zone_index
@@ -106,6 +102,7 @@ impl SnapEngine {
     }
 
     /// Get the current snap state.
+    #[allow(dead_code)]
     pub fn state(&self) -> SnapState {
         self.state
     }
@@ -135,6 +132,7 @@ impl SnapEngine {
     }
 
     /// Return the window handle being dragged, or None if idle.
+    #[allow(dead_code)]
     pub fn dragged_hwnd(&self) -> Option<isize> {
         self.dragged_hwnd
     }
@@ -146,6 +144,7 @@ impl SnapEngine {
     }
 
     /// Return a slice of all resolved zones.
+    #[allow(dead_code)]
     pub fn resolved_zones(&self) -> &[ResolvedZone] {
         &self.resolved_zones
     }
@@ -160,7 +159,7 @@ impl SnapEngine {
 mod tests {
     use super::*;
     use crate::engine::types::Rect;
-    use crate::platform::mock::{MockMonitorProvider, MockWindowManager};
+    use crate::platform::mock::MockMonitorProvider;
 
     fn test_config() -> ZonesConfig {
         serde_json::from_str(
@@ -182,12 +181,11 @@ mod tests {
     }
 
     fn make_engine() -> SnapEngine {
-        let wm = Arc::new(MockWindowManager::new());
         let mp = Arc::new(
             MockMonitorProvider::new()
                 .with_monitor("DISPLAY1", 0, Rect::new(0, 0, 1920, 1080)),
         );
-        SnapEngine::new(wm, mp)
+        SnapEngine::new(mp)
     }
 
     #[test]

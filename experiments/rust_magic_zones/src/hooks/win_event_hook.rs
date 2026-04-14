@@ -25,11 +25,11 @@ use crossbeam_channel::Sender;
 
 use crate::hooks::WinEventMsg;
 
+use windows::Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK};
 use windows::Win32::UI::WindowsAndMessaging::{
-    SetWinEventHook, UnhookWinEvent, EVENT_SYSTEM_MOVESIZEEND, EVENT_SYSTEM_MOVESIZESTART,
-    WINEVENT_OUTOFCONTEXT, WINEVENT_SKIPOWNPROCESS,
+    EVENT_SYSTEM_MOVESIZEEND, EVENT_SYSTEM_MOVESIZESTART, WINEVENT_OUTOFCONTEXT,
+    WINEVENT_SKIPOWNPROCESS,
 };
-use windows::Win32::UI::WindowsAndMessaging::HWINEVENTHOOK;
 use windows::Win32::Foundation::HWND;
 
 /// Global sender for the win-event callback. Set once during [`WinEventHook::install`].
