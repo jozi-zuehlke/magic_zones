@@ -1,23 +1,4 @@
-agents:
-  claude:
-    version: 2.1.80
-  copilot:
-    version: ((latest))
 tools:
-  antidote: ((system))
-  bat: ((system))
-  delta: ((system))
-  direnv: ((system))
   dotnet8: ((system))
-  eza: ((system))
-  fd: ((system))
-  fzf: ((system))
-  git: ((system))
-  gitstatus: ((system))
-  jq: ((system))
-  ripgrep: ((system))
   rust: ((system))
-  task: ((system))
-  zoxide: ((system))
-  zsh: ((system))
-  zsh_config: ((system))
+  rust_windows_target: ((system))
