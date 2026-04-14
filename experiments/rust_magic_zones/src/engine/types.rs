@@ -21,7 +21,7 @@ impl Rect {
     }
 
     /// Returns the centre point of this rectangle.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn center(&self) -> (i32, i32) {
         (self.x + self.width / 2, self.y + self.height / 2)
     }

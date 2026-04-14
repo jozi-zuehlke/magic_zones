@@ -125,7 +125,7 @@ impl ConfigLoader {
     }
 
     /// Return the path this loader is configured for.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn path(&self) -> &Path {
         &self.path
     }

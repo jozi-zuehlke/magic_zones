@@ -1,9 +1,8 @@
-#![allow(dead_code)]
-
 /// Parses human-readable setting strings (hotkeys, colors, modifier names) into
 /// structured representations used by the engine.
 
 /// Supported modifier keys for zone activation.
+#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ModifierKey {
     Shift,
@@ -12,6 +11,7 @@ pub enum ModifierKey {
 }
 
 /// Log verbosity level.
+#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LogLevel {
     Trace,
@@ -29,6 +29,7 @@ pub struct HotkeyBinding {
 }
 
 /// Parse a modifier name string (e.g. `"Shift"`) into a [`ModifierKey`].
+#[cfg(test)]
 pub fn parse_modifier(s: &str) -> Option<ModifierKey> {
     match s.to_lowercase().as_str() {
         "shift" => Some(ModifierKey::Shift),
@@ -39,6 +40,7 @@ pub fn parse_modifier(s: &str) -> Option<ModifierKey> {
 }
 
 /// Parsed representation of a hotkey string like `"Ctrl+Win+Z"`.
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParsedHotkey {
     pub modifiers: Vec<String>,
@@ -46,6 +48,7 @@ pub struct ParsedHotkey {
 }
 
 /// Parse a hotkey string (e.g. `"Ctrl+Win+Z"`) into its components.
+#[cfg(test)]
 pub fn parse_hotkey(s: &str) -> Option<ParsedHotkey> {
     let parts: Vec<&str> = s.split('+').map(str::trim).collect();
     if parts.len() < 2 {
@@ -60,6 +63,7 @@ pub fn parse_hotkey(s: &str) -> Option<ParsedHotkey> {
 }
 
 /// Parse a log level string (case-insensitive) into a [`LogLevel`].
+#[cfg(test)]
 pub fn parse_log_level(s: &str) -> Option<LogLevel> {
     match s.to_lowercase().as_str() {
         "trace" => Some(LogLevel::Trace),
@@ -130,6 +134,7 @@ fn parse_vk(key: &str) -> Option<u32> {
 }
 
 /// Map a modifier name to its Win32 left-variant virtual-key code.
+#[cfg(test)]
 pub fn parse_modifier_vk(s: &str) -> Option<u16> {
     match s.to_lowercase().as_str() {
         "shift" => Some(0xA0),    // VK_LSHIFT

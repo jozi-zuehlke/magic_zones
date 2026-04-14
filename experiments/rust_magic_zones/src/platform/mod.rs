@@ -7,6 +7,7 @@
 #[cfg(windows)]
 pub mod windows;
 
+#[cfg(test)]
 pub mod mock;
 
 use crate::engine::types::Rect;
@@ -23,7 +24,6 @@ pub struct MonitorInfo {
 }
 
 /// Trait abstracting window management Win32 APIs.
-#[allow(dead_code)]
 pub trait WindowManager: Send + Sync {
     /// Move and resize a window.
     fn set_window_pos(&self, hwnd: isize, x: i32, y: i32, width: i32, height: i32, flags: u32);
@@ -38,6 +38,7 @@ pub trait WindowManager: Send + Sync {
     /// Get the current cursor position in screen coordinates.
     fn get_cursor_pos(&self) -> Option<(i32, i32)>;
     /// Get the handle of the foreground window.
+    #[allow(dead_code)]
     fn get_foreground_window(&self) -> isize;
     /// Check whether a window is visible.
     fn is_window_visible(&self, hwnd: isize) -> bool;
@@ -46,15 +47,16 @@ pub trait WindowManager: Send + Sync {
     /// Get the class name of a window.
     fn get_class_name(&self, hwnd: isize) -> String;
     /// Get the title text of a window.
+    #[allow(dead_code)]
     fn get_window_text(&self, hwnd: isize) -> String;
 }
 
 /// Trait for querying keyboard state.
-#[allow(dead_code)]
 pub trait KeyboardState: Send + Sync {
     /// Returns true if the virtual-key is currently held down.
     fn is_key_pressed(&self, vk: u16) -> bool;
     /// Raw async key state query (matches Win32 `GetAsyncKeyState` semantics).
+    #[allow(dead_code)]
     fn get_async_key_state(&self, vk: i32) -> i16;
 }
 

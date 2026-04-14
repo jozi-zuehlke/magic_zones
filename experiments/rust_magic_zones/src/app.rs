@@ -190,7 +190,7 @@ impl App {
     }
 
     /// Check whether snapping is currently enabled.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn is_enabled(&self) -> bool {
         self.enabled
     }
@@ -201,7 +201,7 @@ impl App {
     }
 
     /// Check whether the snap overlay is active.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn is_snapping(&self) -> bool {
         self.snapping_active
     }

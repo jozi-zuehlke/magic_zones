@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 /// Mock implementations of platform traits for testing on non-Windows hosts.
 ///
 /// These mocks are always compiled (not behind `#[cfg(test)]`) so they serve

@@ -38,7 +38,7 @@ pub fn init(log_dir: &std::path::Path, level: &str) -> WorkerGuard {
 ///
 /// Uses `try_init` so it is safe to call from multiple tests — only the first
 /// call actually installs a subscriber; subsequent calls are no-ops.
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn init_for_test() {
     let filter = EnvFilter::try_new("debug").unwrap_or_else(|_| EnvFilter::new("info"));
 

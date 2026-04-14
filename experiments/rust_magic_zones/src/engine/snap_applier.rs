@@ -2,7 +2,9 @@
 
 use std::sync::Arc;
 
-use crate::engine::types::{Rect, ResolvedZone};
+use crate::engine::types::Rect;
+#[cfg(test)]
+use crate::engine::types::ResolvedZone;
 use crate::platform::WindowManager;
 
 /// Moves a window to fit a resolved zone, compensating for invisible window borders.
@@ -20,7 +22,7 @@ impl SnapApplier {
     ///
     /// Compensates for extended frame bounds (invisible borders around modern
     /// Windows windows) so the visible area matches the zone exactly.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn apply(&self, hwnd: isize, zone: &ResolvedZone) {
         // Compute border compensation
         let border_offset = self.compute_border_offset(hwnd);

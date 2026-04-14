@@ -36,6 +36,7 @@ impl ZoneHitTester {
 mod tests {
     use super::*;
     use crate::config::models::ZoneDefinition;
+    use crate::engine::types::Rect;
 
     fn make_zone(id: &str, priority: i32, bounds: Rect) -> ResolvedZone {
         ResolvedZone {

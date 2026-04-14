@@ -25,7 +25,7 @@ impl CoordinateConverter {
     }
 
     /// Convert absolute pixel coordinates to percentage-based values relative to the work area.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn absolute_to_percentage(
         rect: &Rect,
         work_area: &Rect,

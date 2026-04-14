@@ -90,7 +90,7 @@ impl SnapEngine {
     }
 
     /// Notify the engine that the drag has ended. Returns the zone to snap to, if any.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn on_drag_end(&mut self) -> Option<ResolvedZone> {
         let result = self
             .active_zone_index
@@ -102,7 +102,7 @@ impl SnapEngine {
     }
 
     /// Get the current snap state.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn state(&self) -> SnapState {
         self.state
     }
@@ -132,7 +132,7 @@ impl SnapEngine {
     }
 
     /// Return the window handle being dragged, or None if idle.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn dragged_hwnd(&self) -> Option<isize> {
         self.dragged_hwnd
     }
@@ -144,7 +144,7 @@ impl SnapEngine {
     }
 
     /// Return a slice of all resolved zones.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn resolved_zones(&self) -> &[ResolvedZone] {
         &self.resolved_zones
     }
